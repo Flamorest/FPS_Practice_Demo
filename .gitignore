@@ -1,0 +1,27 @@
+# Unreal Engine
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+.vs/
+.vscode/
+*.VC.db
+*.opensdf
+*.sdf
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+Build/
+*.target
+*.modules
+*.version
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
