@@ -11,6 +11,7 @@ class UInputComponent;
 class USkeletalMeshComponent;
 class UCameraComponent;
 class UInputAction;
+class UInputMappingContext;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -48,6 +49,18 @@ protected:
 	/** Mouse Look Input Action */
 	UPROPERTY(EditAnywhere, Category ="Input")
 	class UInputAction* MouseLookAction;
+
+	/** Fire Input Action. If unassigned, a runtime Enhanced Input action is created and mapped to left mouse. */
+	UPROPERTY(EditAnywhere, Category ="Input")
+	UInputAction* FireInputAction;
+
+	/** Runtime fallback Fire action used when no Fire Input Action asset is assigned. */
+	UPROPERTY(Transient)
+	UInputAction* RuntimeFireInputAction;
+
+	/** Runtime mapping context that binds Fire to left mouse. */
+	UPROPERTY(Transient)
+	UInputMappingContext* RuntimeFireMappingContext;
 	
 public:
 	AFPS_Practice_DemoCharacter();
@@ -75,6 +88,16 @@ protected:
 	/** Handles jump end inputs from either controls or UI interfaces */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoJumpEnd();
+
+	/** Handles fire input */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void Fire();
+
+	/** Returns the configured Fire action, creating a runtime fallback if needed */
+	UInputAction* GetOrCreateFireInputAction();
+
+	/** Adds a runtime Enhanced Input mapping for Fire on left mouse */
+	void ConfigureRuntimeFireInputMapping();
 
 protected:
 

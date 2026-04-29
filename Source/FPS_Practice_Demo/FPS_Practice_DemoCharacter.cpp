@@ -5,9 +5,17 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "DrawDebugHelpers.h"
 #include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
+#include "InputAction.h"
 #include "InputActionValue.h"
+#include "InputCoreTypes.h"
+#include "InputMappingContext.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "FPS_Practice_Demo.h"
 
 AFPS_Practice_DemoCharacter::AFPS_Practice_DemoCharacter()
@@ -46,6 +54,8 @@ AFPS_Practice_DemoCharacter::AFPS_Practice_DemoCharacter()
 
 void AFPS_Practice_DemoCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {	
+	ConfigureRuntimeFireInputMapping();
+
 	// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
@@ -59,6 +69,9 @@ void AFPS_Practice_DemoCharacter::SetupPlayerInputComponent(UInputComponent* Pla
 		// Looking/Aiming
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AFPS_Practice_DemoCharacter::LookInput);
 		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &AFPS_Practice_DemoCharacter::LookInput);
+
+		// Firing
+		EnhancedInputComponent->BindAction(GetOrCreateFireInputAction(), ETriggerEvent::Started, this, &AFPS_Practice_DemoCharacter::Fire);
 	}
 	else
 	{
@@ -117,4 +130,77 @@ void AFPS_Practice_DemoCharacter::DoJumpEnd()
 {
 	// pass StopJumping to the character
 	StopJumping();
+}
+
+void AFPS_Practice_DemoCharacter::Fire()
+{
+	UWorld* World = GetWorld();
+	if (!World || !FirstPersonCameraComponent)
+	{
+		return;
+	}
+
+	constexpr float TraceDistance = 5000.0f;
+	const FVector TraceStart = FirstPersonCameraComponent->GetComponentLocation();
+	const FVector TraceEnd = TraceStart + (FirstPersonCameraComponent->GetForwardVector() * TraceDistance);
+
+	FHitResult Hit;
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(FPS_Practice_Demo_FireTrace), true, this);
+	QueryParams.AddIgnoredActor(this);
+
+	const bool bHit = World->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, QueryParams);
+
+	if (bHit)
+	{
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Fire hit actor: %s"), *GetNameSafe(Hit.GetActor()));
+	}
+
+	const FColor DebugColor = bHit ? FColor::Green : FColor::Red;
+	const FVector DebugEnd = bHit ? Hit.ImpactPoint : TraceEnd;
+	DrawDebugLine(World, TraceStart, DebugEnd, DebugColor, false, 1.0f, 0, 1.5f);
+}
+
+UInputAction* AFPS_Practice_DemoCharacter::GetOrCreateFireInputAction()
+{
+	if (FireInputAction)
+	{
+		return FireInputAction;
+	}
+
+	if (!RuntimeFireInputAction)
+	{
+		RuntimeFireInputAction = NewObject<UInputAction>(this, TEXT("IA_Fire_Runtime"));
+		RuntimeFireInputAction->ValueType = EInputActionValueType::Boolean;
+	}
+
+	return RuntimeFireInputAction;
+}
+
+void AFPS_Practice_DemoCharacter::ConfigureRuntimeFireInputMapping()
+{
+	UInputAction* FireAction = GetOrCreateFireInputAction();
+	if (!FireAction)
+	{
+		return;
+	}
+
+	if (!RuntimeFireMappingContext)
+	{
+		RuntimeFireMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Fire_Runtime"));
+		RuntimeFireMappingContext->MapKey(FireAction, EKeys::LeftMouseButton);
+	}
+
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (!PlayerController || !PlayerController->IsLocalPlayerController())
+	{
+		return;
+	}
+
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+	{
+		if (!Subsystem->HasMappingContext(RuntimeFireMappingContext))
+		{
+			Subsystem->AddMappingContext(RuntimeFireMappingContext, 1);
+		}
+	}
 }
