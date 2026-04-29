@@ -2,6 +2,7 @@
 
 #include "ShootingTarget.h"
 #include "Components/StaticMeshComponent.h"
+#include "FPS_Practice_DemoGameMode.h"
 #include "FPS_Practice_Demo.h"
 
 AShootingTarget::AShootingTarget()
@@ -19,6 +20,11 @@ AShootingTarget::AShootingTarget()
 void AShootingTarget::HandleShotHit(AActor* InstigatorActor)
 {
 	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Target hit: %s by %s"), *GetNameSafe(this), *GetNameSafe(InstigatorActor));
+
+	if (AFPS_Practice_DemoGameMode* GameMode = GetWorld()->GetAuthGameMode<AFPS_Practice_DemoGameMode>())
+	{
+		GameMode->AddScore(TargetScoreValue, this);
+	}
 
 	if (bHideOnHit)
 	{
