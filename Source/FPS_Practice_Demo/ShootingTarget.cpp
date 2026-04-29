@@ -1,0 +1,33 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "ShootingTarget.h"
+#include "Components/StaticMeshComponent.h"
+#include "FPS_Practice_Demo.h"
+
+AShootingTarget::AShootingTarget()
+{
+	PrimaryActorTick.bCanEverTick = false;
+
+	TargetMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("TargetMesh"));
+	SetRootComponent(TargetMesh);
+
+	TargetMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	TargetMesh->SetCollisionObjectType(ECC_WorldDynamic);
+	TargetMesh->SetCollisionResponseToAllChannels(ECR_Block);
+}
+
+void AShootingTarget::HandleShotHit(AActor* InstigatorActor)
+{
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Target hit: %s by %s"), *GetNameSafe(this), *GetNameSafe(InstigatorActor));
+
+	if (bHideOnHit)
+	{
+		SetActorHiddenInGame(true);
+		SetActorEnableCollision(false);
+	}
+
+	if (bDestroyOnHit)
+	{
+		Destroy();
+	}
+}

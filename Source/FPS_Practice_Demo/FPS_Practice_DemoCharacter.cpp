@@ -17,6 +17,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "FPS_Practice_Demo.h"
+#include "ShootingTarget.h"
 
 AFPS_Practice_DemoCharacter::AFPS_Practice_DemoCharacter()
 {
@@ -153,6 +154,11 @@ void AFPS_Practice_DemoCharacter::Fire()
 	if (bHit)
 	{
 		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Fire hit actor: %s"), *GetNameSafe(Hit.GetActor()));
+
+		if (AShootingTarget* ShootingTarget = Cast<AShootingTarget>(Hit.GetActor()))
+		{
+			ShootingTarget->HandleShotHit(this);
+		}
 	}
 
 	const FColor DebugColor = bHit ? FColor::Green : FColor::Red;
