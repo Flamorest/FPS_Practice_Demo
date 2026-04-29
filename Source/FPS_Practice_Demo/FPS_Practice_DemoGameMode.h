@@ -34,6 +34,22 @@ public:
 	/** Adds score from a hit target and checks the win condition */
 	UFUNCTION(BlueprintCallable, Category="Score")
 	void AddScore(int32 ScoreAmount, AActor* ScoredTarget);
+
+	/** Returns the current accumulated score */
+	UFUNCTION(BlueprintPure, Category="Score")
+	int32 GetCurrentScore() const { return CurrentScore; }
+
+	/** Returns the score required to win */
+	UFUNCTION(BlueprintPure, Category="Score")
+	int32 GetTargetScoreToWin() const { return TargetScoreToWin; }
+
+	/** Returns how many targets have been hit */
+	UFUNCTION(BlueprintPure, Category="Score")
+	int32 GetHitTargetCount() const { return HitTargetCount; }
+
+	/** Returns true if the player has reached the win condition */
+	UFUNCTION(BlueprintPure, Category="Score")
+	bool HasWonGame() const { return CurrentScore >= TargetScoreToWin; }
 };
 
 

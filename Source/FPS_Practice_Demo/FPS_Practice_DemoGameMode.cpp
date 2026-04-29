@@ -2,10 +2,11 @@
 
 #include "FPS_Practice_DemoGameMode.h"
 #include "FPS_Practice_Demo.h"
+#include "FPSPracticeHUD.h"
 
 AFPS_Practice_DemoGameMode::AFPS_Practice_DemoGameMode()
 {
-	// stub
+	HUDClass = AFPSPracticeHUD::StaticClass();
 }
 
 void AFPS_Practice_DemoGameMode::AddScore(int32 ScoreAmount, AActor* ScoredTarget)
@@ -15,7 +16,7 @@ void AFPS_Practice_DemoGameMode::AddScore(int32 ScoreAmount, AActor* ScoredTarge
 
 	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Current Score: %d / %d (Target: %s, Hits: %d)"), CurrentScore, TargetScoreToWin, *GetNameSafe(ScoredTarget), HitTargetCount);
 
-	if (CurrentScore >= TargetScoreToWin)
+	if (HasWonGame())
 	{
 		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Victory"));
 	}
