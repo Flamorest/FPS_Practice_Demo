@@ -20,6 +20,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
 #include "FPS_Practice_Demo.h"
+#include "FPS_Practice_DemoGameMode.h"
 #include "ShootingTarget.h"
 
 AFPS_Practice_DemoCharacter::AFPS_Practice_DemoCharacter()
@@ -59,6 +60,7 @@ AFPS_Practice_DemoCharacter::AFPS_Practice_DemoCharacter()
 void AFPS_Practice_DemoCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {	
 	ConfigureRuntimeFireInputMapping();
+	ConfigureRuntimeRestartInputMapping();
 
 	// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
@@ -76,6 +78,9 @@ void AFPS_Practice_DemoCharacter::SetupPlayerInputComponent(UInputComponent* Pla
 
 		// Firing
 		EnhancedInputComponent->BindAction(GetOrCreateFireInputAction(), ETriggerEvent::Started, this, &AFPS_Practice_DemoCharacter::Fire);
+
+		// Restart
+		EnhancedInputComponent->BindAction(GetOrCreateRestartInputAction(), ETriggerEvent::Started, this, &AFPS_Practice_DemoCharacter::RestartLevel);
 	}
 	else
 	{
@@ -206,6 +211,22 @@ UInputAction* AFPS_Practice_DemoCharacter::GetOrCreateFireInputAction()
 	return RuntimeFireInputAction;
 }
 
+UInputAction* AFPS_Practice_DemoCharacter::GetOrCreateRestartInputAction()
+{
+	if (RestartInputAction)
+	{
+		return RestartInputAction;
+	}
+
+	if (!RuntimeRestartInputAction)
+	{
+		RuntimeRestartInputAction = NewObject<UInputAction>(this, TEXT("IA_Restart_Runtime"));
+		RuntimeRestartInputAction->ValueType = EInputActionValueType::Boolean;
+	}
+
+	return RuntimeRestartInputAction;
+}
+
 void AFPS_Practice_DemoCharacter::ConfigureRuntimeFireInputMapping()
 {
 	UInputAction* FireAction = GetOrCreateFireInputAction();
@@ -232,5 +253,49 @@ void AFPS_Practice_DemoCharacter::ConfigureRuntimeFireInputMapping()
 		{
 			Subsystem->AddMappingContext(RuntimeFireMappingContext, 1);
 		}
+	}
+}
+
+void AFPS_Practice_DemoCharacter::ConfigureRuntimeRestartInputMapping()
+{
+	UInputAction* RestartAction = GetOrCreateRestartInputAction();
+	if (!RestartAction)
+	{
+		return;
+	}
+
+	if (!RuntimeRestartMappingContext)
+	{
+		RuntimeRestartMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Restart_Runtime"));
+		RuntimeRestartMappingContext->MapKey(RestartAction, EKeys::R);
+	}
+
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (!PlayerController || !PlayerController->IsLocalPlayerController())
+	{
+		return;
+	}
+
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+	{
+		if (!Subsystem->HasMappingContext(RuntimeRestartMappingContext))
+		{
+			Subsystem->AddMappingContext(RuntimeRestartMappingContext, 1);
+		}
+	}
+}
+
+void AFPS_Practice_DemoCharacter::RestartLevel()
+{
+	AFPS_Practice_DemoGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AFPS_Practice_DemoGameMode>() : nullptr;
+	if (GameMode && !GameMode->HasWonGame())
+	{
+		return;
+	}
+
+	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
+	if (!CurrentLevelName.IsEmpty())
+	{
+		UGameplayStatics::OpenLevel(this, FName(*CurrentLevelName));
 	}
 }

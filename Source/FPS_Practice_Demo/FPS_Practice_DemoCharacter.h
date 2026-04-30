@@ -56,6 +56,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category ="Input")
 	UInputAction* FireInputAction;
 
+	/** Restart Input Action. If unassigned, a runtime Enhanced Input action is created and mapped to R. */
+	UPROPERTY(EditAnywhere, Category ="Input")
+	UInputAction* RestartInputAction;
+
 	/** Runtime fallback Fire action used when no Fire Input Action asset is assigned. */
 	UPROPERTY(Transient)
 	UInputAction* RuntimeFireInputAction;
@@ -63,6 +67,14 @@ protected:
 	/** Runtime mapping context that binds Fire to left mouse. */
 	UPROPERTY(Transient)
 	UInputMappingContext* RuntimeFireMappingContext;
+
+	/** Runtime fallback Restart action used when no Restart Input Action asset is assigned. */
+	UPROPERTY(Transient)
+	UInputAction* RuntimeRestartInputAction;
+
+	/** Runtime mapping context that binds Restart to R. */
+	UPROPERTY(Transient)
+	UInputMappingContext* RuntimeRestartMappingContext;
 
 	/** Sound played when the player fires */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Fire", meta = (AllowPrivateAccess = "true"))
@@ -114,8 +126,18 @@ protected:
 	/** Returns the configured Fire action, creating a runtime fallback if needed */
 	UInputAction* GetOrCreateFireInputAction();
 
+	/** Returns the configured Restart action, creating a runtime fallback if needed */
+	UInputAction* GetOrCreateRestartInputAction();
+
 	/** Adds a runtime Enhanced Input mapping for Fire on left mouse */
 	void ConfigureRuntimeFireInputMapping();
+
+	/** Adds a runtime Enhanced Input mapping for Restart on R */
+	void ConfigureRuntimeRestartInputMapping();
+
+	/** Reloads the current level. By default this is only allowed after victory. */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void RestartLevel();
 
 protected:
 
