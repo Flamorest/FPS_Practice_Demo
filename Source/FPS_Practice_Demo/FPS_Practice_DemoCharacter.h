@@ -12,6 +12,8 @@ class USkeletalMeshComponent;
 class UCameraComponent;
 class UInputAction;
 class UInputMappingContext;
+class USoundBase;
+class UCameraShakeBase;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -61,6 +63,22 @@ protected:
 	/** Runtime mapping context that binds Fire to left mouse. */
 	UPROPERTY(Transient)
 	UInputMappingContext* RuntimeFireMappingContext;
+
+	/** Sound played when the player fires */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Fire", meta = (AllowPrivateAccess = "true"))
+	USoundBase* FireSound;
+
+	/** Sound played when the player hits a shooting target */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Fire", meta = (AllowPrivateAccess = "true"))
+	USoundBase* HitSound;
+
+	/** Optional camera shake to play when firing */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Fire", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<UCameraShakeBase> FireCameraShakeClass;
+
+	/** If true, draw the fire debug line */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Fire", meta = (AllowPrivateAccess = "true"))
+	bool bDrawDebugFireLine = true;
 	
 public:
 	AFPS_Practice_DemoCharacter();

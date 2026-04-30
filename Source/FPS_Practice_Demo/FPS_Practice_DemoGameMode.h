@@ -28,6 +28,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Score")
 	int32 HitTargetCount = 0;
 
+	/** True once the player has reached the target score */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Score")
+	bool bHasWonGame = false;
+
 public:
 	AFPS_Practice_DemoGameMode();
 
@@ -37,7 +41,7 @@ public:
 
 	/** Returns the current accumulated score */
 	UFUNCTION(BlueprintPure, Category="Score")
-	int32 GetCurrentScore() const { return CurrentScore; }
+	int32 GetCurrentScore() const { return FMath::Min(CurrentScore, TargetScoreToWin); }
 
 	/** Returns the score required to win */
 	UFUNCTION(BlueprintPure, Category="Score")
@@ -49,7 +53,7 @@ public:
 
 	/** Returns true if the player has reached the win condition */
 	UFUNCTION(BlueprintPure, Category="Score")
-	bool HasWonGame() const { return CurrentScore >= TargetScoreToWin; }
+	bool HasWonGame() const { return bHasWonGame; }
 };
 
 

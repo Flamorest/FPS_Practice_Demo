@@ -3,6 +3,7 @@
 #include "FPS_Practice_DemoCharacter.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
+#include "Camera/CameraShakeBase.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
@@ -16,6 +17,8 @@
 #include "InputMappingContext.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 #include "FPS_Practice_Demo.h"
 #include "ShootingTarget.h"
 
@@ -145,6 +148,19 @@ void AFPS_Practice_DemoCharacter::Fire()
 	const FVector TraceStart = FirstPersonCameraComponent->GetComponentLocation();
 	const FVector TraceEnd = TraceStart + (FirstPersonCameraComponent->GetForwardVector() * TraceDistance);
 
+	if (FireSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, FireSound, TraceStart);
+	}
+
+	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	{
+		if (FireCameraShakeClass)
+		{
+			PlayerController->ClientStartCameraShake(FireCameraShakeClass);
+		}
+	}
+
 	FHitResult Hit;
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(FPS_Practice_Demo_FireTrace), true, this);
 	QueryParams.AddIgnoredActor(this);
@@ -157,13 +173,21 @@ void AFPS_Practice_DemoCharacter::Fire()
 
 		if (AShootingTarget* ShootingTarget = Cast<AShootingTarget>(Hit.GetActor()))
 		{
+			if (HitSound)
+			{
+				UGameplayStatics::PlaySoundAtLocation(this, HitSound, Hit.ImpactPoint);
+			}
+
 			ShootingTarget->HandleShotHit(this);
 		}
 	}
 
-	const FColor DebugColor = bHit ? FColor::Green : FColor::Red;
-	const FVector DebugEnd = bHit ? Hit.ImpactPoint : TraceEnd;
-	DrawDebugLine(World, TraceStart, DebugEnd, DebugColor, false, 1.0f, 0, 1.5f);
+	if (bDrawDebugFireLine)
+	{
+		const FColor DebugColor = bHit ? FColor::Green : FColor::Red;
+		const FVector DebugEnd = bHit ? Hit.ImpactPoint : TraceEnd;
+		DrawDebugLine(World, TraceStart, DebugEnd, DebugColor, false, 1.0f, 0, 1.5f);
+	}
 }
 
 UInputAction* AFPS_Practice_DemoCharacter::GetOrCreateFireInputAction()

@@ -11,13 +11,19 @@ AFPS_Practice_DemoGameMode::AFPS_Practice_DemoGameMode()
 
 void AFPS_Practice_DemoGameMode::AddScore(int32 ScoreAmount, AActor* ScoredTarget)
 {
-	CurrentScore += ScoreAmount;
+	if (bHasWonGame)
+	{
+		return;
+	}
+
+	CurrentScore = FMath::Min(CurrentScore + ScoreAmount, TargetScoreToWin);
 	++HitTargetCount;
 
-	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Current Score: %d / %d (Target: %s, Hits: %d)"), CurrentScore, TargetScoreToWin, *GetNameSafe(ScoredTarget), HitTargetCount);
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Current Score: %d / %d (Target: %s, Hits: %d)"), GetCurrentScore(), TargetScoreToWin, *GetNameSafe(ScoredTarget), HitTargetCount);
 
-	if (HasWonGame())
+	if (CurrentScore >= TargetScoreToWin)
 	{
+		bHasWonGame = true;
 		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Victory"));
 	}
 }

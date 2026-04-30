@@ -28,12 +28,14 @@ void AShootingTarget::HandleShotHit(AActor* InstigatorActor)
 
 	if (bHideOnHit)
 	{
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Target feedback: hiding %s after hit"), *GetNameSafe(this));
 		SetActorHiddenInGame(true);
 		SetActorEnableCollision(false);
 	}
 
 	if (bDestroyOnHit)
 	{
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Target feedback: destroying %s after hit"), *GetNameSafe(this));
 		Destroy();
 	}
 }
