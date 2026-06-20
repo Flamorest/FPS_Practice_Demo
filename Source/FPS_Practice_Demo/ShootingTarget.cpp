@@ -19,6 +19,13 @@ AShootingTarget::AShootingTarget()
 
 void AShootingTarget::HandleShotHit(AActor* InstigatorActor)
 {
+	if (bIsDead)
+	{
+		return;
+	}
+
+	bIsDead = true;
+
 	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Target hit: %s by %s"), *GetNameSafe(this), *GetNameSafe(InstigatorActor));
 
 	if (AFPS_Practice_DemoGameMode* GameMode = GetWorld()->GetAuthGameMode<AFPS_Practice_DemoGameMode>())
@@ -38,4 +45,14 @@ void AShootingTarget::HandleShotHit(AActor* InstigatorActor)
 		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Target feedback: destroying %s after hit"), *GetNameSafe(this));
 		Destroy();
 	}
+}
+
+void AShootingTarget::ReceiveFPSDamage_Implementation(float DamageAmount, AActor* DamageCauser)
+{
+	HandleShotHit(DamageCauser);
+}
+
+bool AShootingTarget::IsDead_Implementation() const
+{
+	return bIsDead;
 }

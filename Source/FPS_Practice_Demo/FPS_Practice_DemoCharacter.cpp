@@ -19,6 +19,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
+#include "FPSDamageableInterface.h"
 #include "FPS_Practice_Demo.h"
 #include "FPS_Practice_DemoGameMode.h"
 #include "ShootingTarget.h"
@@ -174,16 +175,17 @@ void AFPS_Practice_DemoCharacter::Fire()
 
 	if (bHit)
 	{
-		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Fire hit actor: %s"), *GetNameSafe(Hit.GetActor()));
+		AActor* HitActor = Hit.GetActor();
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Fire hit actor: %s"), *GetNameSafe(HitActor));
 
-		if (AShootingTarget* ShootingTarget = Cast<AShootingTarget>(Hit.GetActor()))
+		if (HitActor && HitActor->GetClass()->ImplementsInterface(UFPSDamageableInterface::StaticClass()))
 		{
-			if (HitSound)
+			if (HitSound && HitActor->IsA<AShootingTarget>())
 			{
 				UGameplayStatics::PlaySoundAtLocation(this, HitSound, Hit.ImpactPoint);
 			}
 
-			ShootingTarget->HandleShotHit(this);
+			IFPSDamageableInterface::Execute_ReceiveFPSDamage(HitActor, 1.0f, this);
 		}
 	}
 
