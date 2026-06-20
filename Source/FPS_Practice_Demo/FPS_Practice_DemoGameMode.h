@@ -28,6 +28,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Score")
 	int32 HitTargetCount = 0;
 
+	/** Number of enemies killed so far */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Score")
+	int32 EnemyKillCount = 0;
+
 	/** True once the player has reached the target score */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Score")
 	bool bHasWonGame = false;
@@ -50,6 +54,10 @@ public:
 	/** Returns how many targets have been hit */
 	UFUNCTION(BlueprintPure, Category="Score")
 	int32 GetHitTargetCount() const { return HitTargetCount; }
+
+	/** Returns how many enemies have been killed */
+	UFUNCTION(BlueprintPure, Category="Score")
+	int32 GetEnemyKillCount() const { return EnemyKillCount; }
 
 	/** Returns true if the player has reached the win condition */
 	UFUNCTION(BlueprintPure, Category="Score")

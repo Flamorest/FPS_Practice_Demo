@@ -28,17 +28,19 @@ void AFPSPracticeHUD::DrawHUD()
 	{
 		const FString ScoreText = FString::Printf(TEXT("Score: %d / %d"), GameMode->GetCurrentScore(), GameMode->GetTargetScoreToWin());
 		const FString HitText = FString::Printf(TEXT("Targets Hit: %d"), GameMode->GetHitTargetCount());
+		const FString KillText = FString::Printf(TEXT("Enemies Killed: %d"), GameMode->GetEnemyKillCount());
 		const FString PromptText = GameMode->HasWonGame() ? TEXT("Victory! Press R to restart.") : TEXT("Shoot targets to score.");
 
 		DrawText(ScoreText, FLinearColor::White, 40.0f, 40.0f, ScoreFont, 1.0f, false);
 		DrawText(HitText, FLinearColor::White, 40.0f, 65.0f, ScoreFont, 1.0f, false);
-		DrawText(PromptText, FLinearColor::White, 40.0f, 90.0f, ScoreFont, 1.0f, false);
+		DrawText(KillText, FLinearColor::White, 40.0f, 90.0f, ScoreFont, 1.0f, false);
+		DrawText(PromptText, FLinearColor::White, 40.0f, 115.0f, ScoreFont, 1.0f, false);
 	}
 
 	if (PlayerCharacter)
 	{
 		const FString HealthText = FString::Printf(TEXT("Health: %.0f / %.0f"), PlayerCharacter->GetCurrentHealth(), PlayerCharacter->GetMaxHealth());
-		DrawText(HealthText, FLinearColor::White, 40.0f, 115.0f, ScoreFont, 1.0f, false);
+		DrawText(HealthText, FLinearColor::White, 40.0f, 140.0f, ScoreFont, 1.0f, false);
 	}
 
 	const FString CrosshairText(TEXT("+"));
