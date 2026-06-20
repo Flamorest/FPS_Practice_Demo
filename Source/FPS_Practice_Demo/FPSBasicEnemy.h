@@ -1,0 +1,50 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "FPSDamageableInterface.h"
+#include "GameFramework/Character.h"
+#include "FPSBasicEnemy.generated.h"
+
+/**
+ *  Minimal enemy that can be damaged and killed by the player's hitscan fire
+ */
+UCLASS()
+class FPS_PRACTICE_DEMO_API AFPSBasicEnemy : public ACharacter, public IFPSDamageableInterface
+{
+	GENERATED_BODY()
+
+protected:
+
+	/** Maximum health for this enemy */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Enemy")
+	float MaxHealth = 50.0f;
+
+	/** Current enemy health */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Enemy")
+	float CurrentHealth = 50.0f;
+
+	/** Score awarded when this enemy dies */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Enemy")
+	int32 ScoreValue = 20;
+
+	/** True once this enemy has died */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Enemy")
+	bool bIsDead = false;
+
+public:
+
+	AFPSBasicEnemy();
+
+	/** Handles generic FPS damage */
+	virtual void ReceiveFPSDamage_Implementation(float DamageAmount, AActor* DamageCauser) override;
+
+	/** Returns true if this enemy is dead */
+	virtual bool IsDead_Implementation() const override;
+
+protected:
+
+	/** Handles enemy death */
+	void Die(AActor* DamageCauser);
+};
