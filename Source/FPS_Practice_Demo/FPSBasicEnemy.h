@@ -17,6 +17,18 @@ class FPS_PRACTICE_DEMO_API AFPSBasicEnemy : public ACharacter, public IFPSDamag
 
 protected:
 
+	/** Radius within which the enemy will detect and chase a player */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
+	float DetectionRadius = 2000.0f;
+
+	/** Distance from the player at which movement is considered complete */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
+	float AcceptanceRadius = 150.0f;
+
+	/** How often to refresh the move target */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
+	float MoveUpdateInterval = 0.25f;
+
 	/** Maximum health for this enemy */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Enemy")
 	float MaxHealth = 50.0f;
@@ -33,6 +45,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Enemy")
 	bool bIsDead = false;
 
+	/** Timer used to refresh simple chase behavior */
+	FTimerHandle MoveUpdateTimer;
+
 public:
 
 	AFPSBasicEnemy();
@@ -45,6 +60,16 @@ public:
 
 protected:
 
+	virtual void BeginPlay() override;
+
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 	/** Handles enemy death */
 	void Die(AActor* DamageCauser);
+
+	/** Updates chase movement toward the nearest player */
+	void UpdateMovementTarget();
+
+	/** Finds the closest valid player pawn */
+	APawn* FindNearestPlayerPawn() const;
 };
