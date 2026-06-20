@@ -148,7 +148,7 @@ protected:
 	/** Adds a runtime Enhanced Input mapping for Restart on R */
 	void ConfigureRuntimeRestartInputMapping();
 
-	/** Reloads the current level. By default this is only allowed after victory. */
+	/** Reloads the current level. */
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void RestartLevel();
 

@@ -2,6 +2,8 @@
 
 #include "FPSBasicEnemy.h"
 #include "AIController.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "FPSBasicEnemyAIController.h"
 #include "FPSDamageableInterface.h"
 #include "FPS_Practice_Demo.h"
@@ -16,12 +18,21 @@ AFPSBasicEnemy::AFPSBasicEnemy()
 	PrimaryActorTick.bCanEverTick = false;
 	AIControllerClass = AFPSBasicEnemyAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+
+	// Ensure the enemy can be hit by the player's ECC_Visibility line trace.
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	GetMesh()->SetCollisionResponseToAllChannels(ECR_Ignore);
+	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+
 	CurrentHealth = MaxHealth;
 }
 
 void AFPSBasicEnemy::BeginPlay()
 {
 	Super::BeginPlay();
+
+	CurrentHealth = MaxHealth;
 
 	if (GetWorld())
 	{
@@ -47,6 +58,7 @@ void AFPSBasicEnemy::ReceiveFPSDamage_Implementation(float DamageAmount, AActor*
 	}
 
 	CurrentHealth = FMath::Max(0.0f, CurrentHealth - DamageAmount);
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy took damage: %.1f / Health: %.1f"), DamageAmount, CurrentHealth);
 
 	if (CurrentHealth <= 0.0f)
 	{

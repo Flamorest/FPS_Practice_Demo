@@ -94,6 +94,11 @@ void AFPS_Practice_DemoCharacter::SetupPlayerInputComponent(UInputComponent* Pla
 
 void AFPS_Practice_DemoCharacter::MoveInput(const FInputActionValue& Value)
 {
+	if (bIsDead)
+	{
+		return;
+	}
+
 	// get the Vector2D move axis
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
@@ -124,6 +129,11 @@ void AFPS_Practice_DemoCharacter::DoAim(float Yaw, float Pitch)
 
 void AFPS_Practice_DemoCharacter::DoMove(float Right, float Forward)
 {
+	if (bIsDead)
+	{
+		return;
+	}
+
 	if (GetController())
 	{
 		// pass the move inputs
@@ -134,18 +144,33 @@ void AFPS_Practice_DemoCharacter::DoMove(float Right, float Forward)
 
 void AFPS_Practice_DemoCharacter::DoJumpStart()
 {
+	if (bIsDead)
+	{
+		return;
+	}
+
 	// pass Jump to the character
 	Jump();
 }
 
 void AFPS_Practice_DemoCharacter::DoJumpEnd()
 {
+	if (bIsDead)
+	{
+		return;
+	}
+
 	// pass StopJumping to the character
 	StopJumping();
 }
 
 void AFPS_Practice_DemoCharacter::Fire()
 {
+	if (bIsDead)
+	{
+		return;
+	}
+
 	UWorld* World = GetWorld();
 	if (!World || !FirstPersonCameraComponent)
 	{
@@ -178,10 +203,12 @@ void AFPS_Practice_DemoCharacter::Fire()
 	if (bHit)
 	{
 		AActor* HitActor = Hit.GetActor();
-		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Fire hit actor: %s"), *GetNameSafe(HitActor));
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Fire hit actor: %s, component: %s"), *GetNameSafe(HitActor), *GetNameSafe(Hit.GetComponent()));
 
 		if (HitActor && HitActor->GetClass()->ImplementsInterface(UFPSDamageableInterface::StaticClass()))
 		{
+			UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Applying FPS damage to: %s"), *GetNameSafe(HitActor));
+
 			if (HitSound && HitActor->IsA<AShootingTarget>())
 			{
 				UGameplayStatics::PlaySoundAtLocation(this, HitSound, Hit.ImpactPoint);
@@ -291,15 +318,12 @@ void AFPS_Practice_DemoCharacter::ConfigureRuntimeRestartInputMapping()
 
 void AFPS_Practice_DemoCharacter::RestartLevel()
 {
-	AFPS_Practice_DemoGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AFPS_Practice_DemoGameMode>() : nullptr;
-	if (GameMode && !GameMode->HasWonGame())
-	{
-		return;
-	}
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Restart requested"));
 
 	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
 	if (!CurrentLevelName.IsEmpty())
 	{
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Restarting level: %s"), *CurrentLevelName);
 		UGameplayStatics::OpenLevel(this, FName(*CurrentLevelName));
 	}
 }
@@ -313,9 +337,17 @@ void AFPS_Practice_DemoCharacter::ReceiveFPSDamage_Implementation(float DamageAm
 
 	CurrentHealth = FMath::Max(0.0f, CurrentHealth - DamageAmount);
 
-	if (CurrentHealth <= 0.0f)
+	if (CurrentHealth <= 0.0f && !bIsDead)
 	{
 		bIsDead = true;
+		StopJumping();
+
+		if (UCharacterMovementComponent* CharacterMovementComponent = GetCharacterMovement())
+		{
+			CharacterMovementComponent->StopMovementImmediately();
+			CharacterMovementComponent->DisableMovement();
+		}
+
 		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Player Dead"));
 	}
 }

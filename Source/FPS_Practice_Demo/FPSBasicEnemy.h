@@ -31,7 +31,7 @@ protected:
 
 	/** Range within which the enemy can hit the player */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
-	float AttackRange = 180.0f;
+	float AttackRange = 300.0f;
 
 	/** Damage dealt per attack */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
