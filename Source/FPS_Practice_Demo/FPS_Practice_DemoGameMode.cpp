@@ -64,6 +64,29 @@ void AFPS_Practice_DemoGameMode::AddScore(int32 ScoreAmount, AActor* ScoredTarge
 	SyncGameState();
 }
 
+void AFPS_Practice_DemoGameMode::AddPlayerKillScore(AActor* KillerActor, AActor* VictimActor)
+{
+	if (!HasAuthority() || bHasWonGame)
+	{
+		return;
+	}
+
+	if (!KillerActor || !VictimActor || KillerActor == VictimActor)
+	{
+		return;
+	}
+
+	UE_LOG(
+		LogFPS_Practice_Demo,
+		Log,
+		TEXT("Player kill score added: Killer=%s Victim=%s Score=%d"),
+		*GetNameSafe(KillerActor),
+		*GetNameSafe(VictimActor),
+		PlayerKillScore);
+
+	AddScore(PlayerKillScore, VictimActor);
+}
+
 void AFPS_Practice_DemoGameMode::SyncGameState() const
 {
 	if (AFPS_Practice_DemoGameState* PracticeGameState = GetGameState<AFPS_Practice_DemoGameState>())

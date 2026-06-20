@@ -23,6 +23,7 @@
 #include "FPSDamageableInterface.h"
 #include "FPS_Practice_Demo.h"
 #include "FPS_Practice_DemoGameMode.h"
+#include "FPSBasicEnemy.h"
 #include "ShootingTarget.h"
 
 AFPS_Practice_DemoCharacter::AFPS_Practice_DemoCharacter()
@@ -60,6 +61,11 @@ AFPS_Practice_DemoCharacter::AFPS_Practice_DemoCharacter()
 	// Configure character movement
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 	GetCharacterMovement()->AirControl = 0.5f;
+
+	// Make sure server-side hitscan using ECC_Visibility can hit player characters.
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 
 	CurrentHealth = MaxHealth;
 }
@@ -329,12 +335,23 @@ void AFPS_Practice_DemoCharacter::ReceiveFPSDamage_Implementation(float DamageAm
 	}
 
 	CurrentHealth = FMath::Max(0.0f, CurrentHealth - DamageAmount);
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Player health after damage: %.1f / %.1f"), CurrentHealth, MaxHealth);
 
 	if (CurrentHealth <= 0.0f && !bIsDead)
 	{
 		bIsDead = true;
 		ApplyDeathState();
-		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Player Dead"));
+
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Player killed"));
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Player killed by DamageCauser: %s"), *GetNameSafe(DamageCauser));
+
+		if (DamageCauser && DamageCauser != this && DamageCauser->IsA<AFPS_Practice_DemoCharacter>())
+		{
+			if (AFPS_Practice_DemoGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AFPS_Practice_DemoGameMode>() : nullptr)
+			{
+				GameMode->AddPlayerKillScore(DamageCauser, this);
+			}
+		}
 	}
 }
 
@@ -395,19 +412,38 @@ void AFPS_Practice_DemoCharacter::ExecuteFireTrace(const FVector& TraceStart, co
 	if (bHit)
 	{
 		AActor* HitActor = Hit.GetActor();
-		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Fire hit actor: %s, component: %s"), *GetNameSafe(HitActor), *GetNameSafe(Hit.GetComponent()));
+		const TCHAR* TraceLogPrefix = bApplyDamage ? TEXT("ServerFire") : TEXT("LocalFire");
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("%s hit actor: %s / %s"), TraceLogPrefix, *GetNameSafe(HitActor), HitActor ? *GetNameSafe(HitActor->GetClass()) : TEXT("None"));
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("%s hit component: %s"), TraceLogPrefix, *GetNameSafe(Hit.GetComponent()));
 
-		if (HitActor && HitActor->GetClass()->ImplementsInterface(UFPSDamageableInterface::StaticClass()))
+		if (HitActor && HitActor != this && HitActor->GetClass()->ImplementsInterface(UFPSDamageableInterface::StaticClass()))
 		{
+			if (bApplyDamage && HitActor->IsA<AFPS_Practice_DemoCharacter>())
+			{
+				UE_LOG(LogFPS_Practice_Demo, Log, TEXT("ServerFire hit player: %s"), *GetNameSafe(HitActor));
+			}
+
 			if (bApplyDamage)
 			{
-				UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Server applied damage to: %s"), *GetNameSafe(HitActor));
+				if (HitActor->IsA<AFPS_Practice_DemoCharacter>())
+				{
+					UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Server applied player damage: %s"), *GetNameSafe(HitActor));
+				}
+				else
+				{
+					UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Server applied damage to: %s"), *GetNameSafe(HitActor));
+				}
+
 				IFPSDamageableInterface::Execute_ReceiveFPSDamage(HitActor, 1.0f, this);
 			}
-			else if (HitSound && HitActor->IsA<AShootingTarget>())
+			else if (HitSound && (HitActor->IsA<AShootingTarget>() || HitActor->IsA<AFPS_Practice_DemoCharacter>() || HitActor->IsA<AFPSBasicEnemy>()))
 			{
 				UGameplayStatics::PlaySoundAtLocation(this, HitSound, Hit.ImpactPoint);
 			}
+		}
+		else if (HitActor == this)
+		{
+			UE_LOG(LogFPS_Practice_Demo, Log, TEXT("ServerFire ignored self hit"));
 		}
 	}
 

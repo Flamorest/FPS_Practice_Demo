@@ -32,6 +32,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Score")
 	int32 EnemyKillCount = 0;
 
+	/** Score awarded when one player kills another player */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Score")
+	int32 PlayerKillScore = 50;
+
 	/** True once the player has reached the target score */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Score")
 	bool bHasWonGame = false;
@@ -44,6 +48,10 @@ public:
 	/** Adds score from a hit target and checks the win condition */
 	UFUNCTION(BlueprintCallable, Category="Score")
 	void AddScore(int32 ScoreAmount, AActor* ScoredTarget);
+
+	/** Awards score for a player-vs-player kill */
+	UFUNCTION(BlueprintCallable, Category="Score")
+	void AddPlayerKillScore(AActor* KillerActor, AActor* VictimActor);
 
 	/** Returns the current accumulated score */
 	UFUNCTION(BlueprintPure, Category="Score")

@@ -50,4 +50,9 @@ void AFPS_Practice_DemoGameState::OnRep_ScoreState()
 		HitTargetCount,
 		EnemyKillCount,
 		bHasWonGame ? TEXT("true") : TEXT("false"));
+
+	if (bHasWonGame)
+	{
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Victory replicated"));
+	}
 }
