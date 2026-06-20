@@ -108,7 +108,16 @@ void AFPSBasicEnemy::UpdateMovementTarget()
 	APawn* TargetPawn = FindNearestPlayerPawn();
 	if (TargetPawn)
 	{
-		AIController->MoveToActor(TargetPawn, AcceptanceRadius, true, true, true, nullptr, true);
+		const float DistanceToTarget = FVector::Dist(GetActorLocation(), TargetPawn->GetActorLocation());
+		if (DistanceToTarget <= AttackRange)
+		{
+			AIController->StopMovement();
+			TryAttackPlayer(TargetPawn);
+		}
+		else
+		{
+			AIController->MoveToActor(TargetPawn, AcceptanceRadius, true, true, true, nullptr, true);
+		}
 	}
 	else
 	{
@@ -151,4 +160,38 @@ APawn* AFPSBasicEnemy::FindNearestPlayerPawn() const
 	}
 
 	return NearestPawn;
+}
+
+void AFPSBasicEnemy::TryAttackPlayer(APawn* TargetPawn)
+{
+	if (bIsDead || !TargetPawn)
+	{
+		return;
+	}
+
+	if (!TargetPawn->GetClass()->ImplementsInterface(UFPSDamageableInterface::StaticClass()))
+	{
+		return;
+	}
+
+	if (IFPSDamageableInterface::Execute_IsDead(TargetPawn))
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const float CurrentTime = World->GetTimeSeconds();
+	if ((CurrentTime - LastAttackTime) < AttackCooldown)
+	{
+		return;
+	}
+
+	LastAttackTime = CurrentTime;
+	IFPSDamageableInterface::Execute_ReceiveFPSDamage(TargetPawn, AttackDamage, this);
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy attacked player: %s"), *GetNameSafe(TargetPawn));
 }

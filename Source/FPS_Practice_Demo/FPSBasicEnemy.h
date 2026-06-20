@@ -29,6 +29,18 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="AI")
 	float MoveUpdateInterval = 0.25f;
 
+	/** Range within which the enemy can hit the player */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
+	float AttackRange = 180.0f;
+
+	/** Damage dealt per attack */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
+	float AttackDamage = 10.0f;
+
+	/** Minimum time between attacks */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
+	float AttackCooldown = 1.0f;
+
 	/** Maximum health for this enemy */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Enemy")
 	float MaxHealth = 50.0f;
@@ -47,6 +59,9 @@ protected:
 
 	/** Timer used to refresh simple chase behavior */
 	FTimerHandle MoveUpdateTimer;
+
+	/** Game time when the enemy last attacked */
+	float LastAttackTime = -1000.0f;
 
 public:
 
@@ -72,4 +87,7 @@ protected:
 
 	/** Finds the closest valid player pawn */
 	APawn* FindNearestPlayerPawn() const;
+
+	/** Attempts a simple melee attack on the target pawn */
+	void TryAttackPlayer(APawn* TargetPawn);
 };
