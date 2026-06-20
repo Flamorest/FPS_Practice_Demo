@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "FPSDamageableInterface.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
@@ -22,7 +23,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
  *  A basic first person character
  */
 UCLASS(abstract)
-class AFPS_Practice_DemoCharacter : public ACharacter
+class AFPS_Practice_DemoCharacter : public ACharacter, public IFPSDamageableInterface
 {
 	GENERATED_BODY()
 
@@ -91,6 +92,18 @@ protected:
 	/** If true, draw the fire debug line */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Fire", meta = (AllowPrivateAccess = "true"))
 	bool bDrawDebugFireLine = true;
+
+	/** Maximum health for the player */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Health", meta = (AllowPrivateAccess = "true"))
+	float MaxHealth = 100.0f;
+
+	/** Current player health */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Health", meta = (AllowPrivateAccess = "true"))
+	float CurrentHealth = 100.0f;
+
+	/** True once the player reaches zero health */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Health", meta = (AllowPrivateAccess = "true"))
+	bool bIsDead = false;
 	
 public:
 	AFPS_Practice_DemoCharacter();
@@ -139,6 +152,12 @@ protected:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void RestartLevel();
 
+	/** Handles generic FPS damage */
+	virtual void ReceiveFPSDamage_Implementation(float DamageAmount, AActor* DamageCauser) override;
+
+	/** Returns true if this character is dead */
+	virtual bool IsDead_Implementation() const override;
+
 protected:
 
 	/** Set up input action bindings */
@@ -152,6 +171,15 @@ public:
 
 	/** Returns first person camera component **/
 	UCameraComponent* GetFirstPersonCameraComponent() const { return FirstPersonCameraComponent; }
+
+	/** Returns the player's current health **/
+	float GetCurrentHealth() const { return CurrentHealth; }
+
+	/** Returns the player's maximum health **/
+	float GetMaxHealth() const { return MaxHealth; }
+
+	/** Returns true if the player is dead **/
+	bool IsPlayerDead() const { return bIsDead; }
 
 };
 

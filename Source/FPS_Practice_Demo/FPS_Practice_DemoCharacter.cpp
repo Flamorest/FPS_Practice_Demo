@@ -56,6 +56,8 @@ AFPS_Practice_DemoCharacter::AFPS_Practice_DemoCharacter()
 	// Configure character movement
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 	GetCharacterMovement()->AirControl = 0.5f;
+
+	CurrentHealth = MaxHealth;
 }
 
 void AFPS_Practice_DemoCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -300,4 +302,25 @@ void AFPS_Practice_DemoCharacter::RestartLevel()
 	{
 		UGameplayStatics::OpenLevel(this, FName(*CurrentLevelName));
 	}
+}
+
+void AFPS_Practice_DemoCharacter::ReceiveFPSDamage_Implementation(float DamageAmount, AActor* DamageCauser)
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	CurrentHealth = FMath::Max(0.0f, CurrentHealth - DamageAmount);
+
+	if (CurrentHealth <= 0.0f)
+	{
+		bIsDead = true;
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Player Dead"));
+	}
+}
+
+bool AFPS_Practice_DemoCharacter::IsDead_Implementation() const
+{
+	return bIsDead;
 }

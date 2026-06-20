@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FPSPracticeHUD.h"
+#include "FPS_Practice_DemoCharacter.h"
 #include "FPS_Practice_DemoGameMode.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
@@ -17,6 +18,7 @@ void AFPSPracticeHUD::DrawHUD()
 	}
 
 	AFPS_Practice_DemoGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AFPS_Practice_DemoGameMode>() : nullptr;
+	AFPS_Practice_DemoCharacter* PlayerCharacter = GetOwningPawn() ? Cast<AFPS_Practice_DemoCharacter>(GetOwningPawn()) : nullptr;
 
 	UFont* ScoreFont = GEngine ? GEngine->GetSmallFont() : nullptr;
 	UFont* CrosshairFont = GEngine ? GEngine->GetMediumFont() : nullptr;
@@ -31,6 +33,12 @@ void AFPSPracticeHUD::DrawHUD()
 		DrawText(ScoreText, FLinearColor::White, 40.0f, 40.0f, ScoreFont, 1.0f, false);
 		DrawText(HitText, FLinearColor::White, 40.0f, 65.0f, ScoreFont, 1.0f, false);
 		DrawText(PromptText, FLinearColor::White, 40.0f, 90.0f, ScoreFont, 1.0f, false);
+	}
+
+	if (PlayerCharacter)
+	{
+		const FString HealthText = FString::Printf(TEXT("Health: %.0f / %.0f"), PlayerCharacter->GetCurrentHealth(), PlayerCharacter->GetMaxHealth());
+		DrawText(HealthText, FLinearColor::White, 40.0f, 115.0f, ScoreFont, 1.0f, false);
 	}
 
 	const FString CrosshairText(TEXT("+"));
