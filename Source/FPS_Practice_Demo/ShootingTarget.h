@@ -36,11 +36,19 @@ protected:
 	bool bDestroyOnHit = false;
 
 	/** True once this target has been hit and processed */
+	UPROPERTY(ReplicatedUsing=OnRep_TargetDisabled)
 	bool bIsDead = false;
+
+	UFUNCTION()
+	void OnRep_TargetDisabled();
+
+	void ApplyDisabledState();
 
 public:
 
 	AShootingTarget();
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/** Handles being hit by a shot */
 	UFUNCTION(BlueprintCallable, Category="Target")

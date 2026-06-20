@@ -98,15 +98,17 @@ protected:
 	float MaxHealth = 100.0f;
 
 	/** Current player health */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Health", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category="Health", meta = (AllowPrivateAccess = "true"))
 	float CurrentHealth = 100.0f;
 
 	/** True once the player reaches zero health */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Health", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(ReplicatedUsing=OnRep_PlayerDeadState, VisibleAnywhere, BlueprintReadOnly, Category="Health", meta = (AllowPrivateAccess = "true"))
 	bool bIsDead = false;
 	
 public:
 	AFPS_Practice_DemoCharacter();
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 protected:
 
@@ -136,6 +138,9 @@ protected:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void Fire();
 
+	UFUNCTION(Server, Reliable)
+	void ServerFire(FVector_NetQuantize TraceStart, FVector_NetQuantizeNormal ShotDirection);
+
 	/** Returns the configured Fire action, creating a runtime fallback if needed */
 	UInputAction* GetOrCreateFireInputAction();
 
@@ -152,11 +157,23 @@ protected:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void RestartLevel();
 
+	UFUNCTION(Server, Reliable)
+	void ServerRequestRestartLevel();
+
 	/** Handles generic FPS damage */
 	virtual void ReceiveFPSDamage_Implementation(float DamageAmount, AActor* DamageCauser) override;
 
 	/** Returns true if this character is dead */
 	virtual bool IsDead_Implementation() const override;
+
+	void PlayLocalFireEffects(const FVector& FireLocation);
+
+	void ExecuteFireTrace(const FVector& TraceStart, const FVector& ShotDirection, bool bApplyDamage);
+
+	void ApplyDeathState();
+
+	UFUNCTION()
+	void OnRep_PlayerDeadState();
 
 protected:
 

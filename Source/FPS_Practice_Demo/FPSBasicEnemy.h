@@ -46,7 +46,7 @@ protected:
 	float MaxHealth = 50.0f;
 
 	/** Current enemy health */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Enemy")
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category="Enemy")
 	float CurrentHealth = 50.0f;
 
 	/** Score awarded when this enemy dies */
@@ -54,7 +54,7 @@ protected:
 	int32 ScoreValue = 20;
 
 	/** True once this enemy has died */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Enemy")
+	UPROPERTY(ReplicatedUsing=OnRep_DeadState, VisibleAnywhere, BlueprintReadOnly, Category="Enemy")
 	bool bIsDead = false;
 
 	/** Timer used to refresh simple chase behavior */
@@ -66,6 +66,8 @@ protected:
 public:
 
 	AFPSBasicEnemy();
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/** Handles generic FPS damage */
 	virtual void ReceiveFPSDamage_Implementation(float DamageAmount, AActor* DamageCauser) override;
@@ -90,4 +92,9 @@ protected:
 
 	/** Attempts a simple melee attack on the target pawn */
 	void TryAttackPlayer(APawn* TargetPawn);
+
+	UFUNCTION()
+	void OnRep_DeadState();
+
+	void ApplyDeadState();
 };

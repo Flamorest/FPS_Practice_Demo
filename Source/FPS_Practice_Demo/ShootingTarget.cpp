@@ -4,10 +4,12 @@
 #include "Components/StaticMeshComponent.h"
 #include "FPS_Practice_DemoGameMode.h"
 #include "FPS_Practice_Demo.h"
+#include "Net/UnrealNetwork.h"
 
 AShootingTarget::AShootingTarget()
 {
 	PrimaryActorTick.bCanEverTick = false;
+	bReplicates = true;
 
 	TargetMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("TargetMesh"));
 	SetRootComponent(TargetMesh);
@@ -17,8 +19,20 @@ AShootingTarget::AShootingTarget()
 	TargetMesh->SetCollisionResponseToAllChannels(ECR_Block);
 }
 
+void AShootingTarget::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AShootingTarget, bIsDead);
+}
+
 void AShootingTarget::HandleShotHit(AActor* InstigatorActor)
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (bIsDead)
 	{
 		return;
@@ -33,6 +47,40 @@ void AShootingTarget::HandleShotHit(AActor* InstigatorActor)
 		GameMode->AddScore(TargetScoreValue, this);
 	}
 
+	ApplyDisabledState();
+}
+
+void AShootingTarget::ReceiveFPSDamage_Implementation(float DamageAmount, AActor* DamageCauser)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	HandleShotHit(DamageCauser);
+}
+
+bool AShootingTarget::IsDead_Implementation() const
+{
+	return bIsDead;
+}
+
+void AShootingTarget::OnRep_TargetDisabled()
+{
+	if (bIsDead)
+	{
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Replicated target disabled: %s"), *GetNameSafe(this));
+		ApplyDisabledState();
+	}
+}
+
+void AShootingTarget::ApplyDisabledState()
+{
+	if (!bIsDead)
+	{
+		return;
+	}
+
 	if (bHideOnHit)
 	{
 		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Target feedback: hiding %s after hit"), *GetNameSafe(this));
@@ -40,19 +88,9 @@ void AShootingTarget::HandleShotHit(AActor* InstigatorActor)
 		SetActorEnableCollision(false);
 	}
 
-	if (bDestroyOnHit)
+	if (bDestroyOnHit && HasAuthority())
 	{
 		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Target feedback: destroying %s after hit"), *GetNameSafe(this));
 		Destroy();
 	}
-}
-
-void AShootingTarget::ReceiveFPSDamage_Implementation(float DamageAmount, AActor* DamageCauser)
-{
-	HandleShotHit(DamageCauser);
-}
-
-bool AShootingTarget::IsDead_Implementation() const
-{
-	return bIsDead;
 }

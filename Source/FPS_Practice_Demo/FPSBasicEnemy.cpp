@@ -11,11 +11,14 @@
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 
 AFPSBasicEnemy::AFPSBasicEnemy()
 {
 	PrimaryActorTick.bCanEverTick = false;
+	bReplicates = true;
+	SetReplicateMovement(true);
 	AIControllerClass = AFPSBasicEnemyAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
@@ -28,13 +31,21 @@ AFPSBasicEnemy::AFPSBasicEnemy()
 	CurrentHealth = MaxHealth;
 }
 
+void AFPSBasicEnemy::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AFPSBasicEnemy, CurrentHealth);
+	DOREPLIFETIME(AFPSBasicEnemy, bIsDead);
+}
+
 void AFPSBasicEnemy::BeginPlay()
 {
 	Super::BeginPlay();
 
 	CurrentHealth = MaxHealth;
 
-	if (GetWorld())
+	if (HasAuthority() && GetWorld())
 	{
 		GetWorld()->GetTimerManager().SetTimer(MoveUpdateTimer, this, &AFPSBasicEnemy::UpdateMovementTarget, MoveUpdateInterval, true);
 	}
@@ -52,7 +63,7 @@ void AFPSBasicEnemy::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AFPSBasicEnemy::ReceiveFPSDamage_Implementation(float DamageAmount, AActor* DamageCauser)
 {
-	if (bIsDead)
+	if (!HasAuthority() || bIsDead)
 	{
 		return;
 	}
@@ -73,40 +84,26 @@ bool AFPSBasicEnemy::IsDead_Implementation() const
 
 void AFPSBasicEnemy::Die(AActor* DamageCauser)
 {
-	if (bIsDead)
+	if (!HasAuthority() || bIsDead)
 	{
 		return;
 	}
 
 	bIsDead = true;
-
-	if (GetWorld())
-	{
-		GetWorld()->GetTimerManager().ClearTimer(MoveUpdateTimer);
-	}
-
-	if (AAIController* AIController = Cast<AAIController>(GetController()))
-	{
-		AIController->StopMovement();
-	}
-
-	SetActorEnableCollision(false);
-	SetActorHiddenInGame(true);
-	SetLifeSpan(2.0f);
-	GetCharacterMovement()->StopMovementImmediately();
-	GetCharacterMovement()->DisableMovement();
+	ApplyDeadState();
 
 	if (AFPS_Practice_DemoGameMode* GameMode = GetWorld()->GetAuthGameMode<AFPS_Practice_DemoGameMode>())
 	{
 		GameMode->AddScore(ScoreValue, this);
 	}
 
-	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy Dead: %s (Causer: %s)"), *GetNameSafe(this), *GetNameSafe(DamageCauser));
+	SetLifeSpan(2.0f);
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy died on server: %s (Causer: %s)"), *GetNameSafe(this), *GetNameSafe(DamageCauser));
 }
 
 void AFPSBasicEnemy::UpdateMovementTarget()
 {
-	if (bIsDead)
+	if (!HasAuthority() || bIsDead)
 	{
 		return;
 	}
@@ -176,7 +173,7 @@ APawn* AFPSBasicEnemy::FindNearestPlayerPawn() const
 
 void AFPSBasicEnemy::TryAttackPlayer(APawn* TargetPawn)
 {
-	if (bIsDead || !TargetPawn)
+	if (!HasAuthority() || bIsDead || !TargetPawn)
 	{
 		return;
 	}
@@ -206,4 +203,35 @@ void AFPSBasicEnemy::TryAttackPlayer(APawn* TargetPawn)
 	LastAttackTime = CurrentTime;
 	IFPSDamageableInterface::Execute_ReceiveFPSDamage(TargetPawn, AttackDamage, this);
 	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy attacked player: %s"), *GetNameSafe(TargetPawn));
+}
+
+void AFPSBasicEnemy::OnRep_DeadState()
+{
+	if (bIsDead)
+	{
+		ApplyDeadState();
+	}
+}
+
+void AFPSBasicEnemy::ApplyDeadState()
+{
+	if (!bIsDead)
+	{
+		return;
+	}
+
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(MoveUpdateTimer);
+	}
+
+	if (AAIController* AIController = Cast<AAIController>(GetController()))
+	{
+		AIController->StopMovement();
+	}
+
+	SetActorEnableCollision(false);
+	SetActorHiddenInGame(true);
+	GetCharacterMovement()->StopMovementImmediately();
+	GetCharacterMovement()->DisableMovement();
 }

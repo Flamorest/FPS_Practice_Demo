@@ -39,6 +39,8 @@ protected:
 public:
 	AFPS_Practice_DemoGameMode();
 
+	virtual void InitGameState() override;
+
 	/** Adds score from a hit target and checks the win condition */
 	UFUNCTION(BlueprintCallable, Category="Score")
 	void AddScore(int32 ScoreAmount, AActor* ScoredTarget);
@@ -62,6 +64,10 @@ public:
 	/** Returns true if the player has reached the win condition */
 	UFUNCTION(BlueprintPure, Category="Score")
 	bool HasWonGame() const { return bHasWonGame; }
+
+protected:
+
+	void SyncGameState() const;
 };
 
 

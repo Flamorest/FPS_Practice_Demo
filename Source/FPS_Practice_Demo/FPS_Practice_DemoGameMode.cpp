@@ -4,15 +4,28 @@
 #include "FPSBasicEnemy.h"
 #include "FPS_Practice_Demo.h"
 #include "FPSPracticeHUD.h"
+#include "FPS_Practice_DemoGameState.h"
 #include "ShootingTarget.h"
 
 AFPS_Practice_DemoGameMode::AFPS_Practice_DemoGameMode()
 {
 	HUDClass = AFPSPracticeHUD::StaticClass();
+	GameStateClass = AFPS_Practice_DemoGameState::StaticClass();
+}
+
+void AFPS_Practice_DemoGameMode::InitGameState()
+{
+	Super::InitGameState();
+	SyncGameState();
 }
 
 void AFPS_Practice_DemoGameMode::AddScore(int32 ScoreAmount, AActor* ScoredTarget)
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (bHasWonGame)
 	{
 		return;
@@ -46,5 +59,15 @@ void AFPS_Practice_DemoGameMode::AddScore(int32 ScoreAmount, AActor* ScoredTarge
 	{
 		bHasWonGame = true;
 		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Victory"));
+	}
+
+	SyncGameState();
+}
+
+void AFPS_Practice_DemoGameMode::SyncGameState() const
+{
+	if (AFPS_Practice_DemoGameState* PracticeGameState = GetGameState<AFPS_Practice_DemoGameState>())
+	{
+		PracticeGameState->UpdateScoreState(GetCurrentScore(), TargetScoreToWin, HitTargetCount, EnemyKillCount, bHasWonGame);
 	}
 }

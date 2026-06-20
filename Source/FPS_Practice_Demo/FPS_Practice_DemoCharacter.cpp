@@ -18,6 +18,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
 #include "Sound/SoundBase.h"
 #include "FPSDamageableInterface.h"
 #include "FPS_Practice_Demo.h"
@@ -26,6 +27,9 @@
 
 AFPS_Practice_DemoCharacter::AFPS_Practice_DemoCharacter()
 {
+	bReplicates = true;
+	SetReplicateMovement(true);
+
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
 	
@@ -58,6 +62,14 @@ AFPS_Practice_DemoCharacter::AFPS_Practice_DemoCharacter()
 	GetCharacterMovement()->AirControl = 0.5f;
 
 	CurrentHealth = MaxHealth;
+}
+
+void AFPS_Practice_DemoCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AFPS_Practice_DemoCharacter, CurrentHealth);
+	DOREPLIFETIME(AFPS_Practice_DemoCharacter, bIsDead);
 }
 
 void AFPS_Practice_DemoCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -177,52 +189,19 @@ void AFPS_Practice_DemoCharacter::Fire()
 		return;
 	}
 
-	constexpr float TraceDistance = 5000.0f;
 	const FVector TraceStart = FirstPersonCameraComponent->GetComponentLocation();
-	const FVector TraceEnd = TraceStart + (FirstPersonCameraComponent->GetForwardVector() * TraceDistance);
+	const FVector ShotDirection = FirstPersonCameraComponent->GetForwardVector();
 
-	if (FireSound)
+	PlayLocalFireEffects(TraceStart);
+
+	if (HasAuthority())
 	{
-		UGameplayStatics::PlaySoundAtLocation(this, FireSound, TraceStart);
+		ExecuteFireTrace(TraceStart, ShotDirection, true);
 	}
-
-	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	else
 	{
-		if (FireCameraShakeClass)
-		{
-			PlayerController->ClientStartCameraShake(FireCameraShakeClass);
-		}
-	}
-
-	FHitResult Hit;
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(FPS_Practice_Demo_FireTrace), true, this);
-	QueryParams.AddIgnoredActor(this);
-
-	const bool bHit = World->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, QueryParams);
-
-	if (bHit)
-	{
-		AActor* HitActor = Hit.GetActor();
-		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Fire hit actor: %s, component: %s"), *GetNameSafe(HitActor), *GetNameSafe(Hit.GetComponent()));
-
-		if (HitActor && HitActor->GetClass()->ImplementsInterface(UFPSDamageableInterface::StaticClass()))
-		{
-			UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Applying FPS damage to: %s"), *GetNameSafe(HitActor));
-
-			if (HitSound && HitActor->IsA<AShootingTarget>())
-			{
-				UGameplayStatics::PlaySoundAtLocation(this, HitSound, Hit.ImpactPoint);
-			}
-
-			IFPSDamageableInterface::Execute_ReceiveFPSDamage(HitActor, 1.0f, this);
-		}
-	}
-
-	if (bDrawDebugFireLine)
-	{
-		const FColor DebugColor = bHit ? FColor::Green : FColor::Red;
-		const FVector DebugEnd = bHit ? Hit.ImpactPoint : TraceEnd;
-		DrawDebugLine(World, TraceStart, DebugEnd, DebugColor, false, 1.0f, 0, 1.5f);
+		ExecuteFireTrace(TraceStart, ShotDirection, false);
+		ServerFire(TraceStart, ShotDirection);
 	}
 }
 
@@ -320,17 +299,31 @@ void AFPS_Practice_DemoCharacter::RestartLevel()
 {
 	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Restart requested"));
 
+	if (!HasAuthority())
+	{
+		ServerRequestRestartLevel();
+		return;
+	}
+
 	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this, true);
 	if (!CurrentLevelName.IsEmpty())
 	{
 		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Restarting level: %s"), *CurrentLevelName);
-		UGameplayStatics::OpenLevel(this, FName(*CurrentLevelName));
+
+		if (GetNetMode() == NM_Standalone)
+		{
+			UGameplayStatics::OpenLevel(this, FName(*CurrentLevelName));
+		}
+		else if (UWorld* World = GetWorld())
+		{
+			World->ServerTravel(FString::Printf(TEXT("%s?listen"), *CurrentLevelName));
+		}
 	}
 }
 
 void AFPS_Practice_DemoCharacter::ReceiveFPSDamage_Implementation(float DamageAmount, AActor* DamageCauser)
 {
-	if (bIsDead)
+	if (!HasAuthority() || bIsDead)
 	{
 		return;
 	}
@@ -340,14 +333,7 @@ void AFPS_Practice_DemoCharacter::ReceiveFPSDamage_Implementation(float DamageAm
 	if (CurrentHealth <= 0.0f && !bIsDead)
 	{
 		bIsDead = true;
-		StopJumping();
-
-		if (UCharacterMovementComponent* CharacterMovementComponent = GetCharacterMovement())
-		{
-			CharacterMovementComponent->StopMovementImmediately();
-			CharacterMovementComponent->DisableMovement();
-		}
-
+		ApplyDeathState();
 		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Player Dead"));
 	}
 }
@@ -355,4 +341,99 @@ void AFPS_Practice_DemoCharacter::ReceiveFPSDamage_Implementation(float DamageAm
 bool AFPS_Practice_DemoCharacter::IsDead_Implementation() const
 {
 	return bIsDead;
+}
+
+void AFPS_Practice_DemoCharacter::ServerFire_Implementation(FVector_NetQuantize TraceStart, FVector_NetQuantizeNormal ShotDirection)
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("ServerFire called"));
+	ExecuteFireTrace(TraceStart, ShotDirection, true);
+}
+
+void AFPS_Practice_DemoCharacter::ServerRequestRestartLevel_Implementation()
+{
+	RestartLevel();
+}
+
+void AFPS_Practice_DemoCharacter::PlayLocalFireEffects(const FVector& FireLocation)
+{
+	if (FireSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(this, FireSound, FireLocation);
+	}
+
+	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
+	{
+		if (FireCameraShakeClass)
+		{
+			PlayerController->ClientStartCameraShake(FireCameraShakeClass);
+		}
+	}
+}
+
+void AFPS_Practice_DemoCharacter::ExecuteFireTrace(const FVector& TraceStart, const FVector& ShotDirection, bool bApplyDamage)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	constexpr float TraceDistance = 5000.0f;
+	const FVector TraceEnd = TraceStart + (ShotDirection * TraceDistance);
+
+	FHitResult Hit;
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(FPS_Practice_Demo_FireTrace), true, this);
+	QueryParams.AddIgnoredActor(this);
+
+	const bool bHit = World->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, QueryParams);
+
+	if (bHit)
+	{
+		AActor* HitActor = Hit.GetActor();
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Fire hit actor: %s, component: %s"), *GetNameSafe(HitActor), *GetNameSafe(Hit.GetComponent()));
+
+		if (HitActor && HitActor->GetClass()->ImplementsInterface(UFPSDamageableInterface::StaticClass()))
+		{
+			if (bApplyDamage)
+			{
+				UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Server applied damage to: %s"), *GetNameSafe(HitActor));
+				IFPSDamageableInterface::Execute_ReceiveFPSDamage(HitActor, 1.0f, this);
+			}
+			else if (HitSound && HitActor->IsA<AShootingTarget>())
+			{
+				UGameplayStatics::PlaySoundAtLocation(this, HitSound, Hit.ImpactPoint);
+			}
+		}
+	}
+
+	if (bDrawDebugFireLine)
+	{
+		const FColor DebugColor = bHit ? FColor::Green : FColor::Red;
+		const FVector DebugEnd = bHit ? Hit.ImpactPoint : TraceEnd;
+		DrawDebugLine(World, TraceStart, DebugEnd, DebugColor, false, 1.0f, 0, 1.5f);
+	}
+}
+
+void AFPS_Practice_DemoCharacter::ApplyDeathState()
+{
+	StopJumping();
+
+	if (UCharacterMovementComponent* CharacterMovementComponent = GetCharacterMovement())
+	{
+		CharacterMovementComponent->StopMovementImmediately();
+		CharacterMovementComponent->DisableMovement();
+	}
+}
+
+void AFPS_Practice_DemoCharacter::OnRep_PlayerDeadState()
+{
+	if (bIsDead)
+	{
+		ApplyDeathState();
+	}
 }
