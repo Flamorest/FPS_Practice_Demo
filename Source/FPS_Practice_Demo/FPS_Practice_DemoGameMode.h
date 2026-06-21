@@ -20,6 +20,9 @@ class AFPS_Practice_DemoGameMode : public AGameModeBase
 
 protected:
 
+	/** Sequential player identity assignment for the current match */
+	int32 NextPlayerIndex = 1;
+
 	/** Score required to trigger victory */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Score")
 	int32 TargetScoreToWin = 100;
@@ -40,6 +43,7 @@ public:
 	AFPS_Practice_DemoGameMode();
 
 	virtual void InitGameState() override;
+	virtual void PostLogin(APlayerController* NewPlayer) override;
 
 	/** Adds score to a specific player and checks the win condition */
 	UFUNCTION(BlueprintCallable, Category="Score")

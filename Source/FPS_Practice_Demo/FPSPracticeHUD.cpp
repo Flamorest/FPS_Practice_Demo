@@ -4,6 +4,7 @@
 #include "FPSPracticePlayerState.h"
 #include "FPS_Practice_DemoCharacter.h"
 #include "FPS_Practice_DemoGameState.h"
+#include "GameFramework/PlayerState.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
@@ -54,6 +55,49 @@ void AFPSPracticeHUD::DrawHUD()
 		DrawText(HealthText, FLinearColor::White, 40.0f, 140.0f, ScoreFont, 1.0f, false);
 	}
 
+	if (PracticeGameState && PlayerCharacter && PlayerCharacter->ShouldDrawScoreboard())
+	{
+		const float PanelX = 40.0f;
+		const float PanelY = 180.0f;
+		const float PanelWidth = 420.0f;
+		const float HeaderHeight = 28.0f;
+		const float RowHeight = 22.0f;
+		const int32 PlayerCount = PracticeGameState->PlayerArray.Num();
+		const float PanelHeight = 16.0f + HeaderHeight + (FMath::Max(PlayerCount, 1) * RowHeight) + 16.0f;
+
+		DrawRect(FLinearColor(0.0f, 0.0f, 0.0f, 0.65f), PanelX, PanelY, PanelWidth, PanelHeight);
+		DrawText(TEXT("Scoreboard"), FLinearColor::White, PanelX + 16.0f, PanelY + 10.0f, ScoreFont, 1.0f, false);
+		DrawText(TEXT("Player"), FLinearColor::Gray, PanelX + 16.0f, PanelY + 38.0f, ScoreFont, 1.0f, false);
+		DrawText(TEXT("Score"), FLinearColor::Gray, PanelX + 190.0f, PanelY + 38.0f, ScoreFont, 1.0f, false);
+		DrawText(TEXT("K"), FLinearColor::Gray, PanelX + 285.0f, PanelY + 38.0f, ScoreFont, 1.0f, false);
+		DrawText(TEXT("D"), FLinearColor::Gray, PanelX + 335.0f, PanelY + 38.0f, ScoreFont, 1.0f, false);
+
+		float RowY = PanelY + 62.0f;
+		int32 DisplayIndex = 1;
+		for (APlayerState* BasePlayerState : PracticeGameState->PlayerArray)
+		{
+			AFPSPracticePlayerState* ScorePlayerState = Cast<AFPSPracticePlayerState>(BasePlayerState);
+			if (!ScorePlayerState)
+			{
+				continue;
+			}
+
+			FString PlayerLabel = ScorePlayerState->GetPlayerDisplayName();
+			if (PlayerLabel.IsEmpty())
+			{
+				PlayerLabel = FString::Printf(TEXT("Player %d"), DisplayIndex);
+			}
+
+			DrawText(PlayerLabel, ScorePlayerState->GetPlayerColor(), PanelX + 16.0f, RowY, ScoreFont, 1.0f, false);
+			DrawText(FString::Printf(TEXT("%d"), ScorePlayerState->GetPlayerScore()), FLinearColor::White, PanelX + 190.0f, RowY, ScoreFont, 1.0f, false);
+			DrawText(FString::Printf(TEXT("%d"), ScorePlayerState->GetKillCount()), FLinearColor::White, PanelX + 285.0f, RowY, ScoreFont, 1.0f, false);
+			DrawText(FString::Printf(TEXT("%d"), ScorePlayerState->GetDeathCount()), FLinearColor::White, PanelX + 335.0f, RowY, ScoreFont, 1.0f, false);
+
+			RowY += RowHeight;
+			++DisplayIndex;
+		}
+	}
+
 	const FString CrosshairText(TEXT("+"));
 	float CrosshairWidth = 0.0f;
 	float CrosshairHeight = 0.0f;
@@ -67,6 +111,36 @@ void AFPSPracticeHUD::DrawHUD()
 		CrosshairFont,
 		1.2f,
 		false);
+
+	if (PlayerCharacter && PlayerCharacter->ShouldDrawHitMarker())
+	{
+		const FVector2D ScreenCenter(Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f);
+		const float MarkerOffset = 12.0f;
+		const float MarkerSize = 8.0f;
+		const FLinearColor MarkerColor = FLinearColor::White;
+
+		DrawLine(ScreenCenter.X - MarkerOffset, ScreenCenter.Y - MarkerOffset, ScreenCenter.X - MarkerOffset - MarkerSize, ScreenCenter.Y - MarkerOffset - MarkerSize, MarkerColor, 2.0f);
+		DrawLine(ScreenCenter.X + MarkerOffset, ScreenCenter.Y - MarkerOffset, ScreenCenter.X + MarkerOffset + MarkerSize, ScreenCenter.Y - MarkerOffset - MarkerSize, MarkerColor, 2.0f);
+		DrawLine(ScreenCenter.X - MarkerOffset, ScreenCenter.Y + MarkerOffset, ScreenCenter.X - MarkerOffset - MarkerSize, ScreenCenter.Y + MarkerOffset + MarkerSize, MarkerColor, 2.0f);
+		DrawLine(ScreenCenter.X + MarkerOffset, ScreenCenter.Y + MarkerOffset, ScreenCenter.X + MarkerOffset + MarkerSize, ScreenCenter.Y + MarkerOffset + MarkerSize, MarkerColor, 2.0f);
+	}
+
+	if (PlayerCharacter && PlayerCharacter->ShouldDrawDamageFeedback())
+	{
+		const FString DamageText(TEXT("HIT!"));
+		float DamageTextWidth = 0.0f;
+		float DamageTextHeight = 0.0f;
+		GetTextSize(DamageText, DamageTextWidth, DamageTextHeight, ScoreFont, 1.2f);
+
+		DrawText(
+			DamageText,
+			FLinearColor(1.0f, 0.2f, 0.2f, 1.0f),
+			(Canvas->ClipX - DamageTextWidth) * 0.5f,
+			(Canvas->ClipY * 0.5f) + 48.0f,
+			ScoreFont,
+			1.2f,
+			false);
+	}
 
 	const bool bShouldDrawMatchResult = PracticeGameState && PracticePlayerState && PracticeGameState->HasWonGame();
 	if (bShouldDrawMatchResult)

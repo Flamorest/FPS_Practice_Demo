@@ -7,6 +7,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/TextRenderComponent.h"
 #include "DeathScreenWidget.h"
 #include "DrawDebugHelpers.h"
 #include "EnhancedInputComponent.h"
@@ -27,8 +28,6 @@
 #include "FPS_Practice_DemoGameMode.h"
 #include "FPS_Practice_DemoGameState.h"
 #include "FPSPracticePlayerState.h"
-#include "FPSBasicEnemy.h"
-#include "ShootingTarget.h"
 
 AFPS_Practice_DemoCharacter::AFPS_Practice_DemoCharacter()
 {
@@ -57,6 +56,17 @@ AFPS_Practice_DemoCharacter::AFPS_Practice_DemoCharacter()
 	FirstPersonCameraComponent->FirstPersonFieldOfView = 70.0f;
 	FirstPersonCameraComponent->FirstPersonScale = 0.6f;
 
+	PlayerIdentityMarker = CreateDefaultSubobject<UTextRenderComponent>(TEXT("Player Identity Marker"));
+	PlayerIdentityMarker->SetupAttachment(GetCapsuleComponent());
+	PlayerIdentityMarker->SetRelativeLocation(FVector(0.0f, 0.0f, 120.0f));
+	PlayerIdentityMarker->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
+	PlayerIdentityMarker->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
+	PlayerIdentityMarker->SetWorldSize(28.0f);
+	PlayerIdentityMarker->SetText(FText::FromString(TEXT("Player 1")));
+	PlayerIdentityMarker->SetTextRenderColor(FColor::Red);
+	PlayerIdentityMarker->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	PlayerIdentityMarker->SetCastShadow(false);
+
 	// configure the character comps
 	GetMesh()->SetOwnerNoSee(true);
 	GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
@@ -79,6 +89,19 @@ void AFPS_Practice_DemoCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	BindMatchStateDelegate();
+	ApplyPlayerIdentity();
+}
+
+void AFPS_Practice_DemoCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+	ApplyPlayerIdentity();
+}
+
+void AFPS_Practice_DemoCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	ApplyPlayerIdentity();
 }
 
 void AFPS_Practice_DemoCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -93,10 +116,13 @@ void AFPS_Practice_DemoCharacter::SetupPlayerInputComponent(UInputComponent* Pla
 {	
 	ConfigureRuntimeFireInputMapping();
 	ConfigureRuntimeRestartInputMapping();
+	ConfigureRuntimeScoreboardInputMapping();
 
 	// Set up action bindings
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
+		UInputAction* ScoreboardAction = GetOrCreateScoreboardInputAction();
+
 		// Jumping
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AFPS_Practice_DemoCharacter::DoJumpStart);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &AFPS_Practice_DemoCharacter::DoJumpEnd);
@@ -113,6 +139,10 @@ void AFPS_Practice_DemoCharacter::SetupPlayerInputComponent(UInputComponent* Pla
 
 		// Restart
 		EnhancedInputComponent->BindAction(GetOrCreateRestartInputAction(), ETriggerEvent::Started, this, &AFPS_Practice_DemoCharacter::RestartLevel);
+
+		// Scoreboard
+		EnhancedInputComponent->BindAction(ScoreboardAction, ETriggerEvent::Started, this, &AFPS_Practice_DemoCharacter::ShowScoreboard);
+		EnhancedInputComponent->BindAction(ScoreboardAction, ETriggerEvent::Completed, this, &AFPS_Practice_DemoCharacter::HideScoreboard);
 	}
 	else
 	{
@@ -254,6 +284,22 @@ UInputAction* AFPS_Practice_DemoCharacter::GetOrCreateRestartInputAction()
 	return RuntimeRestartInputAction;
 }
 
+UInputAction* AFPS_Practice_DemoCharacter::GetOrCreateScoreboardInputAction()
+{
+	if (ScoreboardInputAction)
+	{
+		return ScoreboardInputAction;
+	}
+
+	if (!RuntimeScoreboardInputAction)
+	{
+		RuntimeScoreboardInputAction = NewObject<UInputAction>(this, TEXT("IA_Scoreboard_Runtime"));
+		RuntimeScoreboardInputAction->ValueType = EInputActionValueType::Boolean;
+	}
+
+	return RuntimeScoreboardInputAction;
+}
+
 void AFPS_Practice_DemoCharacter::ConfigureRuntimeFireInputMapping()
 {
 	UInputAction* FireAction = GetOrCreateFireInputAction();
@@ -312,6 +358,35 @@ void AFPS_Practice_DemoCharacter::ConfigureRuntimeRestartInputMapping()
 	}
 }
 
+void AFPS_Practice_DemoCharacter::ConfigureRuntimeScoreboardInputMapping()
+{
+	UInputAction* ScoreboardAction = GetOrCreateScoreboardInputAction();
+	if (!ScoreboardAction)
+	{
+		return;
+	}
+
+	if (!RuntimeScoreboardMappingContext)
+	{
+		RuntimeScoreboardMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Scoreboard_Runtime"));
+		RuntimeScoreboardMappingContext->MapKey(ScoreboardAction, EKeys::Tab);
+	}
+
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (!PlayerController || !PlayerController->IsLocalPlayerController())
+	{
+		return;
+	}
+
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+	{
+		if (!Subsystem->HasMappingContext(RuntimeScoreboardMappingContext))
+		{
+			Subsystem->AddMappingContext(RuntimeScoreboardMappingContext, 1);
+		}
+	}
+}
+
 void AFPS_Practice_DemoCharacter::RestartLevel()
 {
 	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Restart requested"));
@@ -346,7 +421,9 @@ void AFPS_Practice_DemoCharacter::ReceiveFPSDamage_Implementation(float DamageAm
 	}
 
 	CurrentHealth = FMath::Max(0.0f, CurrentHealth - DamageAmount);
-	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Player health after damage: %.1f / %.1f"), CurrentHealth, MaxHealth);
+	FPS_PRACTICE_VERBOSE_LOG(TEXT("Player health after damage: %.1f / %.1f"), CurrentHealth, MaxHealth);
+	ClientShowDamageFeedback();
+	FPS_PRACTICE_VERBOSE_LOG(TEXT("Damage feedback requested"));
 
 	if (CurrentHealth <= 0.0f && !bIsDead)
 	{
@@ -379,7 +456,7 @@ void AFPS_Practice_DemoCharacter::ServerFire_Implementation(FVector_NetQuantize 
 		return;
 	}
 
-	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("ServerFire called"));
+	FPS_PRACTICE_VERBOSE_LOG(TEXT("ServerFire called"));
 	ExecuteFireTrace(TraceStart, ShotDirection, true);
 }
 
@@ -399,6 +476,43 @@ void AFPS_Practice_DemoCharacter::ServerRequestRespawn_Implementation()
 	}
 
 	RespawnAtPlayerStart();
+}
+
+void AFPS_Practice_DemoCharacter::ShowScoreboard()
+{
+	bShowScoreboard = true;
+}
+
+void AFPS_Practice_DemoCharacter::HideScoreboard()
+{
+	bShowScoreboard = false;
+}
+
+void AFPS_Practice_DemoCharacter::ClientShowHitMarker_Implementation()
+{
+	if (bIsDead || !GetWorld())
+	{
+		return;
+	}
+
+	HitMarkerEndTime = GetWorld()->GetTimeSeconds() + HitMarkerDuration;
+	FPS_PRACTICE_VERBOSE_LOG(TEXT("Hit marker requested"));
+
+	if (HitSound)
+	{
+		UGameplayStatics::PlaySound2D(this, HitSound);
+	}
+}
+
+void AFPS_Practice_DemoCharacter::ClientShowDamageFeedback_Implementation()
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	DamageFeedbackEndTime = GetWorld()->GetTimeSeconds() + DamageFeedbackDuration;
+	FPS_PRACTICE_VERBOSE_LOG(TEXT("Damage feedback requested"));
 }
 
 void AFPS_Practice_DemoCharacter::PlayLocalFireEffects(const FVector& FireLocation)
@@ -438,41 +552,43 @@ void AFPS_Practice_DemoCharacter::ExecuteFireTrace(const FVector& TraceStart, co
 	{
 		AActor* HitActor = Hit.GetActor();
 		const TCHAR* TraceLogPrefix = bApplyDamage ? TEXT("ServerFire") : TEXT("LocalFire");
-		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("%s hit actor: %s / %s"), TraceLogPrefix, *GetNameSafe(HitActor), HitActor ? *GetNameSafe(HitActor->GetClass()) : TEXT("None"));
-		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("%s hit component: %s"), TraceLogPrefix, *GetNameSafe(Hit.GetComponent()));
+		FPS_PRACTICE_VERBOSE_LOG(TEXT("%s hit actor: %s / %s"), TraceLogPrefix, *GetNameSafe(HitActor), HitActor ? *GetNameSafe(HitActor->GetClass()) : TEXT("None"));
+		FPS_PRACTICE_VERBOSE_LOG(TEXT("%s hit component: %s"), TraceLogPrefix, *GetNameSafe(Hit.GetComponent()));
 
 		if (HitActor && HitActor != this && HitActor->GetClass()->ImplementsInterface(UFPSDamageableInterface::StaticClass()))
 		{
-			if (bApplyDamage && HitActor->IsA<AFPS_Practice_DemoCharacter>())
+			const bool bTargetAlreadyDead = IFPSDamageableInterface::Execute_IsDead(HitActor);
+			if (!bTargetAlreadyDead)
 			{
-				UE_LOG(LogFPS_Practice_Demo, Log, TEXT("ServerFire hit player: %s"), *GetNameSafe(HitActor));
-			}
-
-			if (bApplyDamage)
-			{
-				if (HitActor->IsA<AFPS_Practice_DemoCharacter>())
+				if (bApplyDamage && HitActor->IsA<AFPS_Practice_DemoCharacter>())
 				{
-					UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Server applied player damage: %s"), *GetNameSafe(HitActor));
-				}
-				else
-				{
-					UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Server applied damage to: %s"), *GetNameSafe(HitActor));
+					FPS_PRACTICE_VERBOSE_LOG(TEXT("ServerFire hit player: %s"), *GetNameSafe(HitActor));
 				}
 
-				IFPSDamageableInterface::Execute_ReceiveFPSDamage(HitActor, 1.0f, this);
-			}
-			else if (HitSound && (HitActor->IsA<AShootingTarget>() || HitActor->IsA<AFPS_Practice_DemoCharacter>() || HitActor->IsA<AFPSBasicEnemy>()))
-			{
-				UGameplayStatics::PlaySoundAtLocation(this, HitSound, Hit.ImpactPoint);
+				if (bApplyDamage)
+				{
+					if (HitActor->IsA<AFPS_Practice_DemoCharacter>())
+					{
+						FPS_PRACTICE_VERBOSE_LOG(TEXT("Server applied player damage: %s"), *GetNameSafe(HitActor));
+					}
+					else
+					{
+						FPS_PRACTICE_VERBOSE_LOG(TEXT("Server applied damage to: %s"), *GetNameSafe(HitActor));
+					}
+
+					IFPSDamageableInterface::Execute_ReceiveFPSDamage(HitActor, 1.0f, this);
+					FPS_PRACTICE_VERBOSE_LOG(TEXT("Server confirmed valid hit"));
+					ClientShowHitMarker();
+				}
 			}
 		}
 		else if (HitActor == this)
 		{
-			UE_LOG(LogFPS_Practice_Demo, Log, TEXT("ServerFire ignored self hit"));
+			FPS_PRACTICE_VERBOSE_LOG(TEXT("ServerFire ignored self hit"));
 		}
 	}
 
-	if (bDrawDebugFireLine)
+	if (bDrawDebugFireLine && IsFPSPracticeFireDebugLineEnabled())
 	{
 		const FColor DebugColor = bHit ? FColor::Green : FColor::Red;
 		const FVector DebugEnd = bHit ? Hit.ImpactPoint : TraceEnd;
@@ -538,6 +654,11 @@ void AFPS_Practice_DemoCharacter::SetCharacterVisualState(bool bDead)
 		}
 	}
 
+	if (PlayerIdentityMarker)
+	{
+		PlayerIdentityMarker->SetHiddenInGame(bDead, true);
+	}
+
 	if (UCapsuleComponent* CapsuleCollisionComponent = GetCapsuleComponent())
 	{
 		if (bDead)
@@ -552,6 +673,23 @@ void AFPS_Practice_DemoCharacter::SetCharacterVisualState(bool bDead)
 			CapsuleCollisionComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 		}
 	}
+}
+
+void AFPS_Practice_DemoCharacter::ApplyPlayerIdentity()
+{
+	AFPSPracticePlayerState* PracticePlayerState = GetPlayerState<AFPSPracticePlayerState>();
+	if (!PracticePlayerState || !PlayerIdentityMarker)
+	{
+		return;
+	}
+
+	const FString DisplayName = PracticePlayerState->GetPlayerDisplayName().IsEmpty()
+		? FString::Printf(TEXT("Player %d"), PracticePlayerState->GetPlayerIndex())
+		: PracticePlayerState->GetPlayerDisplayName();
+
+	PlayerIdentityMarker->SetText(FText::FromString(DisplayName));
+	PlayerIdentityMarker->SetTextRenderColor(PracticePlayerState->GetPlayerColor().ToFColor(true));
+	PlayerIdentityMarker->SetHiddenInGame(bIsDead, true);
 }
 
 void AFPS_Practice_DemoCharacter::ShowDeathScreen()
@@ -720,4 +858,24 @@ void AFPS_Practice_DemoCharacter::HandleReplayButtonClicked()
 	{
 		ServerRequestRespawn();
 	}
+}
+
+bool AFPS_Practice_DemoCharacter::ShouldDrawHitMarker() const
+{
+	return !bIsDead && GetWorld() && GetWorld()->GetTimeSeconds() < HitMarkerEndTime;
+}
+
+bool AFPS_Practice_DemoCharacter::ShouldDrawDamageFeedback() const
+{
+	return GetWorld() && GetWorld()->GetTimeSeconds() < DamageFeedbackEndTime;
+}
+
+bool AFPS_Practice_DemoCharacter::IsDeathScreenVisible() const
+{
+	return DeathScreenWidgetInstance && DeathScreenWidgetInstance->IsInViewport();
+}
+
+void AFPS_Practice_DemoCharacter::RefreshPlayerIdentity()
+{
+	ApplyPlayerIdentity();
 }

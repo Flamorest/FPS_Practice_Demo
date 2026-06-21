@@ -16,6 +16,15 @@ class FPS_PRACTICE_DEMO_API AFPSPracticePlayerState : public APlayerState
 
 protected:
 
+	UPROPERTY(ReplicatedUsing=OnRep_PlayerIdentity, VisibleAnywhere, BlueprintReadOnly, Category="Identity")
+	int32 PlayerIndex = 1;
+
+	UPROPERTY(ReplicatedUsing=OnRep_PlayerIdentity, VisibleAnywhere, BlueprintReadOnly, Category="Identity")
+	FString PlayerDisplayName = TEXT("Player 1");
+
+	UPROPERTY(ReplicatedUsing=OnRep_PlayerIdentity, VisibleAnywhere, BlueprintReadOnly, Category="Identity")
+	FLinearColor PlayerColor = FLinearColor::Red;
+
 	UPROPERTY(ReplicatedUsing=OnRep_PlayerStats, VisibleAnywhere, BlueprintReadOnly, Category="Score")
 	int32 PlayerScore = 0;
 
@@ -34,6 +43,9 @@ protected:
 	UFUNCTION()
 	void OnRep_PlayerStats();
 
+	UFUNCTION()
+	void OnRep_PlayerIdentity();
+
 public:
 
 	AFPSPracticePlayerState();
@@ -45,7 +57,11 @@ public:
 	void AddDeath();
 	void AddTargetHit();
 	void AddEnemyKill();
+	void SetPlayerIdentity(int32 NewPlayerIndex, const FString& NewPlayerDisplayName, const FLinearColor& NewPlayerColor);
 
+	int32 GetPlayerIndex() const { return PlayerIndex; }
+	const FString& GetPlayerDisplayName() const { return PlayerDisplayName; }
+	const FLinearColor& GetPlayerColor() const { return PlayerColor; }
 	int32 GetPlayerScore() const { return PlayerScore; }
 	int32 GetKillCount() const { return KillCount; }
 	int32 GetDeathCount() const { return DeathCount; }

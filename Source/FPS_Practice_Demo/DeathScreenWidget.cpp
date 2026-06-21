@@ -129,7 +129,7 @@ void UDeathScreenWidget::SetReplayEnabled(bool bEnabled)
 
 void UDeathScreenWidget::HandleReplayButtonClicked()
 {
-	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Replay button clicked"));
+	FPS_PRACTICE_VERBOSE_LOG(TEXT("Replay button clicked"));
 	SetReplayEnabled(false);
 
 	if (AFPS_Practice_DemoCharacter* Character = OwningCharacter.Get())

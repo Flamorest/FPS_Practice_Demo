@@ -40,7 +40,7 @@ void AShootingTarget::HandleShotHit(AActor* InstigatorActor)
 
 	bIsDead = true;
 
-	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Target hit: %s by %s"), *GetNameSafe(this), *GetNameSafe(InstigatorActor));
+	FPS_PRACTICE_VERBOSE_LOG(TEXT("Target hit: %s by %s"), *GetNameSafe(this), *GetNameSafe(InstigatorActor));
 
 	if (AFPS_Practice_DemoGameMode* GameMode = GetWorld()->GetAuthGameMode<AFPS_Practice_DemoGameMode>())
 	{
@@ -69,7 +69,7 @@ void AShootingTarget::OnRep_TargetDisabled()
 {
 	if (bIsDead)
 	{
-		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Replicated target disabled: %s"), *GetNameSafe(this));
+		FPS_PRACTICE_VERBOSE_LOG(TEXT("Replicated target disabled: %s"), *GetNameSafe(this));
 		ApplyDisabledState();
 	}
 }
@@ -83,14 +83,14 @@ void AShootingTarget::ApplyDisabledState()
 
 	if (bHideOnHit)
 	{
-		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Target feedback: hiding %s after hit"), *GetNameSafe(this));
+		FPS_PRACTICE_VERBOSE_LOG(TEXT("Target feedback: hiding %s after hit"), *GetNameSafe(this));
 		SetActorHiddenInGame(true);
 		SetActorEnableCollision(false);
 	}
 
 	if (bDestroyOnHit && HasAuthority())
 	{
-		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Target feedback: destroying %s after hit"), *GetNameSafe(this));
+		FPS_PRACTICE_VERBOSE_LOG(TEXT("Target feedback: destroying %s after hit"), *GetNameSafe(this));
 		Destroy();
 	}
 }

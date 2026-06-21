@@ -72,7 +72,7 @@ void AFPSBasicEnemy::ReceiveFPSDamage_Implementation(float DamageAmount, AActor*
 	}
 
 	CurrentHealth = FMath::Max(0.0f, CurrentHealth - DamageAmount);
-	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy took damage: %.1f / Health: %.1f"), DamageAmount, CurrentHealth);
+	FPS_PRACTICE_VERBOSE_LOG(TEXT("Enemy took damage: %.1f / Health: %.1f"), DamageAmount, CurrentHealth);
 
 	if (CurrentHealth <= 0.0f)
 	{
@@ -102,7 +102,7 @@ void AFPSBasicEnemy::Die(AActor* DamageCauser)
 	}
 
 	SetLifeSpan(2.0f);
-	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy died on server: %s (Causer: %s)"), *GetNameSafe(this), *GetNameSafe(DamageCauser));
+	FPS_PRACTICE_VERBOSE_LOG(TEXT("Enemy died on server: %s (Causer: %s)"), *GetNameSafe(this), *GetNameSafe(DamageCauser));
 }
 
 void AFPSBasicEnemy::UpdateMovementTarget()
@@ -207,7 +207,7 @@ void AFPSBasicEnemy::TryAttackPlayer(APawn* TargetPawn)
 	LastAttackTime = CurrentTime;
 	IFPSDamageableInterface::Execute_ReceiveFPSDamage(TargetPawn, AttackDamage, this);
 	TriggerAttackAnimation();
-	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy attacked player: %s"), *GetNameSafe(TargetPawn));
+	FPS_PRACTICE_VERBOSE_LOG(TEXT("Enemy attacked player: %s"), *GetNameSafe(TargetPawn));
 }
 
 void AFPSBasicEnemy::OnRep_DeadState()
@@ -250,7 +250,7 @@ void AFPSBasicEnemy::ApplyDeadState()
 		}
 	}
 
-	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy dead, stop animation state"));
+	FPS_PRACTICE_VERBOSE_LOG(TEXT("Enemy dead, stop animation state"));
 }
 
 void AFPSBasicEnemy::TriggerAttackAnimation()
@@ -261,7 +261,7 @@ void AFPSBasicEnemy::TriggerAttackAnimation()
 	}
 
 	bIsAttacking = true;
-	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy attack animation triggered: %s"), *GetNameSafe(this));
+	FPS_PRACTICE_VERBOSE_LOG(TEXT("Enemy attack animation triggered: %s"), *GetNameSafe(this));
 	MulticastPlayAttackAnimation();
 
 	const float AttackStateDuration = (bUseAttackMontage && AttackMontage) ? AttackMontage->GetPlayLength() : AttackFeedbackDuration;
@@ -289,10 +289,10 @@ void AFPSBasicEnemy::MulticastPlayAttackAnimation_Implementation()
 	if (bUseAttackMontage && AttackMontage && AnimInstance)
 	{
 		AnimInstance->Montage_Play(AttackMontage);
-		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy attack montage played: %s"), *GetNameSafe(this));
+		FPS_PRACTICE_VERBOSE_LOG(TEXT("Enemy attack montage played: %s"), *GetNameSafe(this));
 	}
 	else
 	{
-		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy attack montage missing, using fallback: %s"), *GetNameSafe(this));
+		FPS_PRACTICE_VERBOSE_LOG(TEXT("Enemy attack montage missing, using fallback: %s"), *GetNameSafe(this));
 	}
 }

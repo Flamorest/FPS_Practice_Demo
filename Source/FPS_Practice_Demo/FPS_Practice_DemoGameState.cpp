@@ -25,9 +25,7 @@ void AFPS_Practice_DemoGameState::UpdateMatchState(int32 NewTargetScoreToWin, bo
 	bHasWonGame = bNewHasWonGame;
 	WinningPlayerState = NewWinningPlayerState;
 
-	UE_LOG(
-		LogFPS_Practice_Demo,
-		Log,
+	FPS_PRACTICE_VERBOSE_LOG(
 		TEXT("GameState match updated: TargetScoreToWin %d, Victory %s, Winner=%s"),
 		TargetScoreToWin,
 		bHasWonGame ? TEXT("true") : TEXT("false"),
@@ -38,9 +36,7 @@ void AFPS_Practice_DemoGameState::UpdateMatchState(int32 NewTargetScoreToWin, bo
 
 void AFPS_Practice_DemoGameState::OnRep_MatchState()
 {
-	UE_LOG(
-		LogFPS_Practice_Demo,
-		Log,
+	FPS_PRACTICE_VERBOSE_LOG(
 		TEXT("GameState match updated: TargetScoreToWin %d, Victory %s, Winner=%s"),
 		TargetScoreToWin,
 		bHasWonGame ? TEXT("true") : TEXT("false"),
@@ -48,7 +44,7 @@ void AFPS_Practice_DemoGameState::OnRep_MatchState()
 
 	if (bHasWonGame)
 	{
-		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Victory replicated"));
+		FPS_PRACTICE_VERBOSE_LOG(TEXT("Victory replicated"));
 	}
 
 	OnMatchStateUpdated.Broadcast();

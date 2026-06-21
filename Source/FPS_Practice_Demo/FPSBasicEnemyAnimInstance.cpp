@@ -39,6 +39,6 @@ void UFPSBasicEnemyAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	{
 		bHasLoggedMovementState = true;
 		bLastLoggedIsMoving = bIsMoving;
-		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy speed updated: %s Speed=%.1f Moving=%s"), *GetNameSafe(Enemy), Speed, bIsMoving ? TEXT("true") : TEXT("false"));
+		FPS_PRACTICE_VERBOSE_LOG(TEXT("Enemy speed updated: %s Speed=%.1f Moving=%s"), *GetNameSafe(Enemy), Speed, bIsMoving ? TEXT("true") : TEXT("false"));
 	}
 }
