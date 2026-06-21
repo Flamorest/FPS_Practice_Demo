@@ -34,6 +34,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
 	float AttackRange = 300.0f;
 
+	/** Distance beyond which the enemy exits attack state and resumes chasing */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
+	float AttackExitRange = 380.0f;
+
 	/** Damage dealt per attack */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
 	float AttackDamage = 10.0f;
@@ -119,6 +123,7 @@ protected:
 	void ApplyDeadState();
 	void TriggerAttackAnimation();
 	void ClearAttackState();
+	void ExitAttackState(bool bTargetMovedOutOfRange);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastPlayAttackAnimation();

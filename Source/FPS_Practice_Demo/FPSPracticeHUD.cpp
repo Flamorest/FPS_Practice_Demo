@@ -4,6 +4,7 @@
 #include "FPSPracticePlayerState.h"
 #include "FPS_Practice_DemoCharacter.h"
 #include "FPS_Practice_DemoGameState.h"
+#include "FPS_Practice_Demo.h"
 #include "GameFramework/PlayerState.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
@@ -26,6 +27,12 @@ void AFPSPracticeHUD::DrawHUD()
 	UFont* ScoreFont = GEngine ? GEngine->GetSmallFont() : nullptr;
 	UFont* CrosshairFont = GEngine ? GEngine->GetMediumFont() : nullptr;
 	UFont* VictoryFont = GEngine ? GEngine->GetLargeFont() : nullptr;
+	static bool bLoggedLargerUIFontSizes = false;
+	if (!bLoggedLargerUIFontSizes)
+	{
+		bLoggedLargerUIFontSizes = true;
+		FPS_PRACTICE_VERBOSE_LOG(TEXT("Applying larger UI font sizes"));
+	}
 
 	if (PracticeGameState && PracticePlayerState)
 	{
@@ -115,30 +122,31 @@ void AFPSPracticeHUD::DrawHUD()
 	if (PlayerCharacter && PlayerCharacter->ShouldDrawHitMarker())
 	{
 		const FVector2D ScreenCenter(Canvas->ClipX * 0.5f, Canvas->ClipY * 0.5f);
-		const float MarkerOffset = 12.0f;
-		const float MarkerSize = 8.0f;
+		const float MarkerOffset = 16.0f;
+		const float MarkerSize = 12.0f;
 		const FLinearColor MarkerColor = FLinearColor::White;
 
-		DrawLine(ScreenCenter.X - MarkerOffset, ScreenCenter.Y - MarkerOffset, ScreenCenter.X - MarkerOffset - MarkerSize, ScreenCenter.Y - MarkerOffset - MarkerSize, MarkerColor, 2.0f);
-		DrawLine(ScreenCenter.X + MarkerOffset, ScreenCenter.Y - MarkerOffset, ScreenCenter.X + MarkerOffset + MarkerSize, ScreenCenter.Y - MarkerOffset - MarkerSize, MarkerColor, 2.0f);
-		DrawLine(ScreenCenter.X - MarkerOffset, ScreenCenter.Y + MarkerOffset, ScreenCenter.X - MarkerOffset - MarkerSize, ScreenCenter.Y + MarkerOffset + MarkerSize, MarkerColor, 2.0f);
-		DrawLine(ScreenCenter.X + MarkerOffset, ScreenCenter.Y + MarkerOffset, ScreenCenter.X + MarkerOffset + MarkerSize, ScreenCenter.Y + MarkerOffset + MarkerSize, MarkerColor, 2.0f);
+		DrawLine(ScreenCenter.X - MarkerOffset, ScreenCenter.Y - MarkerOffset, ScreenCenter.X - MarkerOffset - MarkerSize, ScreenCenter.Y - MarkerOffset - MarkerSize, MarkerColor, 2.5f);
+		DrawLine(ScreenCenter.X + MarkerOffset, ScreenCenter.Y - MarkerOffset, ScreenCenter.X + MarkerOffset + MarkerSize, ScreenCenter.Y - MarkerOffset - MarkerSize, MarkerColor, 2.5f);
+		DrawLine(ScreenCenter.X - MarkerOffset, ScreenCenter.Y + MarkerOffset, ScreenCenter.X - MarkerOffset - MarkerSize, ScreenCenter.Y + MarkerOffset + MarkerSize, MarkerColor, 2.5f);
+		DrawLine(ScreenCenter.X + MarkerOffset, ScreenCenter.Y + MarkerOffset, ScreenCenter.X + MarkerOffset + MarkerSize, ScreenCenter.Y + MarkerOffset + MarkerSize, MarkerColor, 2.5f);
 	}
 
 	if (PlayerCharacter && PlayerCharacter->ShouldDrawDamageFeedback())
 	{
 		const FString DamageText(TEXT("HIT!"));
+		const float DamageTextScale = 1.8f;
 		float DamageTextWidth = 0.0f;
 		float DamageTextHeight = 0.0f;
-		GetTextSize(DamageText, DamageTextWidth, DamageTextHeight, ScoreFont, 1.2f);
+		GetTextSize(DamageText, DamageTextWidth, DamageTextHeight, ScoreFont, DamageTextScale);
 
 		DrawText(
 			DamageText,
 			FLinearColor(1.0f, 0.2f, 0.2f, 1.0f),
 			(Canvas->ClipX - DamageTextWidth) * 0.5f,
-			(Canvas->ClipY * 0.5f) + 48.0f,
+			(Canvas->ClipY * 0.5f) + 54.0f,
 			ScoreFont,
-			1.2f,
+			DamageTextScale,
 			false);
 	}
 
@@ -148,17 +156,18 @@ void AFPSPracticeHUD::DrawHUD()
 		const bool bIsWinningPlayer = PracticeGameState->GetWinningPlayerState() == PracticePlayerState;
 		const FString ResultText = bIsWinningPlayer ? TEXT("Victory!") : TEXT("Defeat!");
 		const FLinearColor ResultColor = bIsWinningPlayer ? FLinearColor::Yellow : FLinearColor(1.0f, 0.2f, 0.2f, 1.0f);
+		const float ResultTextScale = 1.25f;
 		float ResultWidth = 0.0f;
 		float ResultHeight = 0.0f;
-		GetTextSize(ResultText, ResultWidth, ResultHeight, VictoryFont, 1.0f);
+		GetTextSize(ResultText, ResultWidth, ResultHeight, VictoryFont, ResultTextScale);
 
 		DrawText(
 			ResultText,
 			ResultColor,
 			(Canvas->ClipX - ResultWidth) * 0.5f,
-			(Canvas->ClipY - ResultHeight) * 0.5f - 60.0f,
+			(Canvas->ClipY - ResultHeight) * 0.5f - 76.0f,
 			VictoryFont,
-			1.0f,
+			ResultTextScale,
 			false);
 	}
 }

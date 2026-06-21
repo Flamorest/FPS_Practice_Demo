@@ -46,6 +46,7 @@ void AFPSBasicEnemy::BeginPlay()
 	Super::BeginPlay();
 
 	CurrentHealth = MaxHealth;
+	AttackExitRange = FMath::Max(AttackExitRange, AttackRange);
 
 	if (HasAuthority() && GetWorld())
 	{
@@ -129,11 +130,17 @@ void AFPSBasicEnemy::UpdateMovementTarget()
 		}
 		else
 		{
+			if (bIsAttacking && DistanceToTarget > AttackExitRange)
+			{
+				ExitAttackState(true);
+			}
+
 			AIController->MoveToActor(TargetPawn, AcceptanceRadius, true, true, true, nullptr, true);
 		}
 	}
 	else
 	{
+		ExitAttackState(false);
 		AIController->StopMovement();
 	}
 }
@@ -260,6 +267,11 @@ void AFPSBasicEnemy::TriggerAttackAnimation()
 		return;
 	}
 
+	if (!bIsAttacking)
+	{
+		FPS_PRACTICE_VERBOSE_LOG(TEXT("Enemy entered attack state: %s"), *GetNameSafe(this));
+	}
+
 	bIsAttacking = true;
 	FPS_PRACTICE_VERBOSE_LOG(TEXT("Enemy attack animation triggered: %s"), *GetNameSafe(this));
 	MulticastPlayAttackAnimation();
@@ -274,7 +286,35 @@ void AFPSBasicEnemy::TriggerAttackAnimation()
 
 void AFPSBasicEnemy::ClearAttackState()
 {
+	if (!bIsAttacking)
+	{
+		return;
+	}
+
 	bIsAttacking = false;
+	FPS_PRACTICE_VERBOSE_LOG(TEXT("Enemy attack animation finished: %s"), *GetNameSafe(this));
+}
+
+void AFPSBasicEnemy::ExitAttackState(bool bTargetMovedOutOfRange)
+{
+	if (!bIsAttacking)
+	{
+		return;
+	}
+
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(AttackStateTimer);
+	}
+
+	bIsAttacking = false;
+
+	if (bTargetMovedOutOfRange)
+	{
+		FPS_PRACTICE_VERBOSE_LOG(TEXT("Enemy target moved out of attack range: %s"), *GetNameSafe(this));
+	}
+
+	FPS_PRACTICE_VERBOSE_LOG(TEXT("Enemy exited attack state, resuming chase: %s"), *GetNameSafe(this));
 }
 
 void AFPSBasicEnemy::MulticastPlayAttackAnimation_Implementation()

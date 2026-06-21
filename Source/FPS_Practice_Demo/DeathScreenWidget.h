@@ -61,6 +61,9 @@ protected:
 	float FadeSpeed = 1.5f;
 	bool bIsFadingIn = false;
 
+	float DeathTextFontSize = 56.0f;
+	float ReplayButtonFontSize = 24.0f;
+
 	UFUNCTION()
 	void HandleReplayButtonClicked();
 };

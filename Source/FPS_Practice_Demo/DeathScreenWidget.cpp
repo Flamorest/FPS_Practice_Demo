@@ -42,11 +42,14 @@ TSharedRef<SWidget> UDeathScreenWidget::RebuildWidget()
 		DeathTextBlock->SetText(FText::FromString(TEXT("You Died")));
 		DeathTextBlock->SetColorAndOpacity(FSlateColor(FLinearColor::White));
 		DeathTextBlock->SetJustification(ETextJustify::Center);
+		FSlateFontInfo DeathFont = DeathTextBlock->GetFont();
+		DeathFont.Size = DeathTextFontSize;
+		DeathTextBlock->SetFont(DeathFont);
 
 		if (UVerticalBoxSlot* DeathTextSlot = CenterBox->AddChildToVerticalBox(DeathTextBlock))
 		{
 			DeathTextSlot->SetHorizontalAlignment(HAlign_Center);
-			DeathTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 24.0f));
+			DeathTextSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 28.0f));
 		}
 
 		ReplayButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("ReplayButton"));
@@ -56,6 +59,9 @@ TSharedRef<SWidget> UDeathScreenWidget::RebuildWidget()
 		ReplayButtonText->SetText(FText::FromString(TEXT("Replay")));
 		ReplayButtonText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
 		ReplayButtonText->SetJustification(ETextJustify::Center);
+		FSlateFontInfo ReplayFont = ReplayButtonText->GetFont();
+		ReplayFont.Size = ReplayButtonFontSize;
+		ReplayButtonText->SetFont(ReplayFont);
 		ReplayButton->AddChild(ReplayButtonText);
 
 		if (UVerticalBoxSlot* ReplayButtonSlot = CenterBox->AddChildToVerticalBox(ReplayButton))
