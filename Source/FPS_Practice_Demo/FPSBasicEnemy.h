@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Animation/AnimMontage.h"
 #include "CoreMinimal.h"
 #include "FPSDamageableInterface.h"
 #include "GameFramework/Character.h"
@@ -41,6 +42,18 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
 	float AttackCooldown = 1.0f;
 
+	/** Optional montage to play when the enemy attacks */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Animation")
+	TObjectPtr<UAnimMontage> AttackMontage = nullptr;
+
+	/** If true, attempt to play AttackMontage when attacking */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Animation")
+	bool bUseAttackMontage = true;
+
+	/** Lightweight fallback duration used when no montage is available */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Animation")
+	float AttackFeedbackDuration = 0.25f;
+
 	/** Maximum health for this enemy */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Enemy")
 	float MaxHealth = 50.0f;
@@ -57,8 +70,15 @@ protected:
 	UPROPERTY(ReplicatedUsing=OnRep_DeadState, VisibleAnywhere, BlueprintReadOnly, Category="Enemy")
 	bool bIsDead = false;
 
+	/** True while the enemy is in its attack feedback state */
+	UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category="Animation")
+	bool bIsAttacking = false;
+
 	/** Timer used to refresh simple chase behavior */
 	FTimerHandle MoveUpdateTimer;
+
+	/** Timer used to clear temporary attack feedback state */
+	FTimerHandle AttackStateTimer;
 
 	/** Game time when the enemy last attacked */
 	float LastAttackTime = -1000.0f;
@@ -97,4 +117,14 @@ protected:
 	void OnRep_DeadState();
 
 	void ApplyDeadState();
+	void TriggerAttackAnimation();
+	void ClearAttackState();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayAttackAnimation();
+
+public:
+
+	bool IsDeadForAnimation() const { return bIsDead; }
+	bool IsAttackingForAnimation() const { return bIsAttacking; }
 };

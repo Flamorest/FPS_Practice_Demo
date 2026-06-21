@@ -2,6 +2,7 @@
 
 #include "FPSBasicEnemy.h"
 #include "AIController.h"
+#include "Animation/AnimInstance.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "FPSBasicEnemyAIController.h"
@@ -37,6 +38,7 @@ void AFPSBasicEnemy::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 
 	DOREPLIFETIME(AFPSBasicEnemy, CurrentHealth);
 	DOREPLIFETIME(AFPSBasicEnemy, bIsDead);
+	DOREPLIFETIME(AFPSBasicEnemy, bIsAttacking);
 }
 
 void AFPSBasicEnemy::BeginPlay()
@@ -58,6 +60,7 @@ void AFPSBasicEnemy::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(MoveUpdateTimer);
+		GetWorld()->GetTimerManager().ClearTimer(AttackStateTimer);
 	}
 }
 
@@ -90,11 +93,12 @@ void AFPSBasicEnemy::Die(AActor* DamageCauser)
 	}
 
 	bIsDead = true;
+	bIsAttacking = false;
 	ApplyDeadState();
 
 	if (AFPS_Practice_DemoGameMode* GameMode = GetWorld()->GetAuthGameMode<AFPS_Practice_DemoGameMode>())
 	{
-		GameMode->AddScore(ScoreValue, this);
+		GameMode->AddScoreForActor(DamageCauser, ScoreValue, this);
 	}
 
 	SetLifeSpan(2.0f);
@@ -202,6 +206,7 @@ void AFPSBasicEnemy::TryAttackPlayer(APawn* TargetPawn)
 
 	LastAttackTime = CurrentTime;
 	IFPSDamageableInterface::Execute_ReceiveFPSDamage(TargetPawn, AttackDamage, this);
+	TriggerAttackAnimation();
 	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy attacked player: %s"), *GetNameSafe(TargetPawn));
 }
 
@@ -223,6 +228,7 @@ void AFPSBasicEnemy::ApplyDeadState()
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(MoveUpdateTimer);
+		GetWorld()->GetTimerManager().ClearTimer(AttackStateTimer);
 	}
 
 	if (AAIController* AIController = Cast<AAIController>(GetController()))
@@ -234,4 +240,59 @@ void AFPSBasicEnemy::ApplyDeadState()
 	SetActorHiddenInGame(true);
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->DisableMovement();
+	bIsAttacking = false;
+
+	if (USkeletalMeshComponent* MeshComponent = GetMesh())
+	{
+		if (UAnimInstance* AnimInstance = MeshComponent->GetAnimInstance())
+		{
+			AnimInstance->Montage_Stop(0.1f);
+		}
+	}
+
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy dead, stop animation state"));
+}
+
+void AFPSBasicEnemy::TriggerAttackAnimation()
+{
+	if (!HasAuthority() || bIsDead)
+	{
+		return;
+	}
+
+	bIsAttacking = true;
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy attack animation triggered: %s"), *GetNameSafe(this));
+	MulticastPlayAttackAnimation();
+
+	const float AttackStateDuration = (bUseAttackMontage && AttackMontage) ? AttackMontage->GetPlayLength() : AttackFeedbackDuration;
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(AttackStateTimer);
+		GetWorld()->GetTimerManager().SetTimer(AttackStateTimer, this, &AFPSBasicEnemy::ClearAttackState, AttackStateDuration, false);
+	}
+}
+
+void AFPSBasicEnemy::ClearAttackState()
+{
+	bIsAttacking = false;
+}
+
+void AFPSBasicEnemy::MulticastPlayAttackAnimation_Implementation()
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	USkeletalMeshComponent* MeshComponent = GetMesh();
+	UAnimInstance* AnimInstance = MeshComponent ? MeshComponent->GetAnimInstance() : nullptr;
+	if (bUseAttackMontage && AttackMontage && AnimInstance)
+	{
+		AnimInstance->Montage_Play(AttackMontage);
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy attack montage played: %s"), *GetNameSafe(this));
+	}
+	else
+	{
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Enemy attack montage missing, using fallback: %s"), *GetNameSafe(this));
+	}
 }

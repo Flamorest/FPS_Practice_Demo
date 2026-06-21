@@ -44,7 +44,7 @@ void AShootingTarget::HandleShotHit(AActor* InstigatorActor)
 
 	if (AFPS_Practice_DemoGameMode* GameMode = GetWorld()->GetAuthGameMode<AFPS_Practice_DemoGameMode>())
 	{
-		GameMode->AddScore(TargetScoreValue, this);
+		GameMode->AddScoreForActor(InstigatorActor, TargetScoreValue, this);
 	}
 
 	ApplyDisabledState();

@@ -6,6 +6,10 @@
 #include "GameFramework/GameModeBase.h"
 #include "FPS_Practice_DemoGameMode.generated.h"
 
+class AFPSPracticePlayerState;
+class AController;
+class APlayerState;
+
 /**
  *  Simple GameMode for a first person game
  */
@@ -16,21 +20,9 @@ class AFPS_Practice_DemoGameMode : public AGameModeBase
 
 protected:
 
-	/** Current score accumulated from hit targets */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Score")
-	int32 CurrentScore = 0;
-
 	/** Score required to trigger victory */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Score")
 	int32 TargetScoreToWin = 100;
-
-	/** Number of targets hit so far */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Score")
-	int32 HitTargetCount = 0;
-
-	/** Number of enemies killed so far */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Score")
-	int32 EnemyKillCount = 0;
 
 	/** Score awarded when one player kills another player */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Score")
@@ -40,34 +32,30 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Score")
 	bool bHasWonGame = false;
 
+	/** The player who reached the win condition */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Score")
+	TObjectPtr<APlayerState> WinningPlayerState = nullptr;
+
 public:
 	AFPS_Practice_DemoGameMode();
 
 	virtual void InitGameState() override;
 
-	/** Adds score from a hit target and checks the win condition */
+	/** Adds score to a specific player and checks the win condition */
 	UFUNCTION(BlueprintCallable, Category="Score")
-	void AddScore(int32 ScoreAmount, AActor* ScoredTarget);
+	void AddScoreForPlayer(AController* ScoringController, int32 ScoreAmount, AActor* ScoredTarget);
+
+	/** Adds score for a scoring actor by resolving its owning controller */
+	UFUNCTION(BlueprintCallable, Category="Score")
+	void AddScoreForActor(AActor* ScoringActor, int32 ScoreAmount, AActor* ScoredTarget);
 
 	/** Awards score for a player-vs-player kill */
 	UFUNCTION(BlueprintCallable, Category="Score")
-	void AddPlayerKillScore(AActor* KillerActor, AActor* VictimActor);
-
-	/** Returns the current accumulated score */
-	UFUNCTION(BlueprintPure, Category="Score")
-	int32 GetCurrentScore() const { return FMath::Min(CurrentScore, TargetScoreToWin); }
+	void AddPlayerKillScore(AController* KillerController, AController* VictimController);
 
 	/** Returns the score required to win */
 	UFUNCTION(BlueprintPure, Category="Score")
 	int32 GetTargetScoreToWin() const { return TargetScoreToWin; }
-
-	/** Returns how many targets have been hit */
-	UFUNCTION(BlueprintPure, Category="Score")
-	int32 GetHitTargetCount() const { return HitTargetCount; }
-
-	/** Returns how many enemies have been killed */
-	UFUNCTION(BlueprintPure, Category="Score")
-	int32 GetEnemyKillCount() const { return EnemyKillCount; }
 
 	/** Returns true if the player has reached the win condition */
 	UFUNCTION(BlueprintPure, Category="Score")
@@ -76,6 +64,8 @@ public:
 protected:
 
 	void SyncGameState() const;
+	AFPSPracticePlayerState* GetPracticePlayerState(AController* Controller) const;
+	void CheckVictory(AFPSPracticePlayerState* ScoringPlayerState);
 };
 
 

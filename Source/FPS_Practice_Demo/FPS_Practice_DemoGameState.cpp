@@ -2,6 +2,7 @@
 
 #include "FPS_Practice_DemoGameState.h"
 #include "Net/UnrealNetwork.h"
+#include "GameFramework/PlayerState.h"
 #include "FPS_Practice_Demo.h"
 
 AFPS_Practice_DemoGameState::AFPS_Practice_DemoGameState()
@@ -13,46 +14,42 @@ void AFPS_Practice_DemoGameState::GetLifetimeReplicatedProps(TArray<FLifetimePro
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(AFPS_Practice_DemoGameState, CurrentScore);
 	DOREPLIFETIME(AFPS_Practice_DemoGameState, TargetScoreToWin);
-	DOREPLIFETIME(AFPS_Practice_DemoGameState, HitTargetCount);
-	DOREPLIFETIME(AFPS_Practice_DemoGameState, EnemyKillCount);
 	DOREPLIFETIME(AFPS_Practice_DemoGameState, bHasWonGame);
+	DOREPLIFETIME(AFPS_Practice_DemoGameState, WinningPlayerState);
 }
 
-void AFPS_Practice_DemoGameState::UpdateScoreState(int32 NewCurrentScore, int32 NewTargetScoreToWin, int32 NewHitTargetCount, int32 NewEnemyKillCount, bool bNewHasWonGame)
+void AFPS_Practice_DemoGameState::UpdateMatchState(int32 NewTargetScoreToWin, bool bNewHasWonGame, APlayerState* NewWinningPlayerState)
 {
-	CurrentScore = NewCurrentScore;
 	TargetScoreToWin = NewTargetScoreToWin;
-	HitTargetCount = NewHitTargetCount;
-	EnemyKillCount = NewEnemyKillCount;
 	bHasWonGame = bNewHasWonGame;
+	WinningPlayerState = NewWinningPlayerState;
 
 	UE_LOG(
 		LogFPS_Practice_Demo,
 		Log,
-		TEXT("GameState score updated: Score %d / %d, Targets Hit %d, Enemies Killed %d, Victory %s"),
-		CurrentScore,
+		TEXT("GameState match updated: TargetScoreToWin %d, Victory %s, Winner=%s"),
 		TargetScoreToWin,
-		HitTargetCount,
-		EnemyKillCount,
-		bHasWonGame ? TEXT("true") : TEXT("false"));
+		bHasWonGame ? TEXT("true") : TEXT("false"),
+		*GetNameSafe(WinningPlayerState.Get()));
+
+	OnMatchStateUpdated.Broadcast();
 }
 
-void AFPS_Practice_DemoGameState::OnRep_ScoreState()
+void AFPS_Practice_DemoGameState::OnRep_MatchState()
 {
 	UE_LOG(
 		LogFPS_Practice_Demo,
 		Log,
-		TEXT("GameState score updated: Score %d / %d, Targets Hit %d, Enemies Killed %d, Victory %s"),
-		CurrentScore,
+		TEXT("GameState match updated: TargetScoreToWin %d, Victory %s, Winner=%s"),
 		TargetScoreToWin,
-		HitTargetCount,
-		EnemyKillCount,
-		bHasWonGame ? TEXT("true") : TEXT("false"));
+		bHasWonGame ? TEXT("true") : TEXT("false"),
+		*GetNameSafe(WinningPlayerState.Get()));
 
 	if (bHasWonGame)
 	{
 		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Victory replicated"));
 	}
+
+	OnMatchStateUpdated.Broadcast();
 }

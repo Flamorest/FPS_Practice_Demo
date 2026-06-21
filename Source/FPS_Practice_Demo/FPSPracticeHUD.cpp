@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FPSPracticeHUD.h"
+#include "FPSPracticePlayerState.h"
 #include "FPS_Practice_DemoCharacter.h"
-#include "FPS_Practice_DemoGameMode.h"
 #include "FPS_Practice_DemoGameState.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
@@ -19,25 +19,28 @@ void AFPSPracticeHUD::DrawHUD()
 	}
 
 	AFPS_Practice_DemoGameState* PracticeGameState = GetWorld() ? GetWorld()->GetGameState<AFPS_Practice_DemoGameState>() : nullptr;
-	AFPS_Practice_DemoGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AFPS_Practice_DemoGameMode>() : nullptr;
 	AFPS_Practice_DemoCharacter* PlayerCharacter = GetOwningPawn() ? Cast<AFPS_Practice_DemoCharacter>(GetOwningPawn()) : nullptr;
+	AFPSPracticePlayerState* PracticePlayerState = GetOwningPlayerController() ? GetOwningPlayerController()->GetPlayerState<AFPSPracticePlayerState>() : nullptr;
 
 	UFont* ScoreFont = GEngine ? GEngine->GetSmallFont() : nullptr;
 	UFont* CrosshairFont = GEngine ? GEngine->GetMediumFont() : nullptr;
 	UFont* VictoryFont = GEngine ? GEngine->GetLargeFont() : nullptr;
 
-	if (PracticeGameState || GameMode)
+	if (PracticeGameState && PracticePlayerState)
 	{
-		const int32 CurrentScore = PracticeGameState ? PracticeGameState->GetCurrentScore() : GameMode->GetCurrentScore();
-		const int32 TargetScoreToWin = PracticeGameState ? PracticeGameState->GetTargetScoreToWin() : GameMode->GetTargetScoreToWin();
-		const int32 HitTargetCount = PracticeGameState ? PracticeGameState->GetHitTargetCount() : GameMode->GetHitTargetCount();
-		const int32 EnemyKillCount = PracticeGameState ? PracticeGameState->GetEnemyKillCount() : GameMode->GetEnemyKillCount();
-		const bool bHasWonGame = PracticeGameState ? PracticeGameState->HasWonGame() : GameMode->HasWonGame();
+		const int32 CurrentScore = FMath::Min(PracticePlayerState->GetPlayerScore(), PracticeGameState->GetTargetScoreToWin());
+		const int32 TargetScoreToWin = PracticeGameState->GetTargetScoreToWin();
+		const int32 HitTargetCount = PracticePlayerState->GetHitTargetCount();
+		const int32 EnemyKillCount = PracticePlayerState->GetEnemyKillCount();
+		const bool bHasWonGame = PracticeGameState->HasWonGame();
+		const bool bIsWinningPlayer = !bHasWonGame || (PracticeGameState->GetWinningPlayerState() == PracticePlayerState);
 
 		const FString ScoreText = FString::Printf(TEXT("Score: %d / %d"), CurrentScore, TargetScoreToWin);
 		const FString HitText = FString::Printf(TEXT("Targets Hit: %d"), HitTargetCount);
 		const FString KillText = FString::Printf(TEXT("Enemies Killed: %d"), EnemyKillCount);
-		const FString PromptText = bHasWonGame ? TEXT("Victory! Press R to restart.") : TEXT("Shoot targets to score.");
+		const FString PromptText = !bHasWonGame
+			? TEXT("Shoot targets to score.")
+			: (bIsWinningPlayer ? TEXT("Victory! Press R to restart.") : TEXT("Defeat! Press R to restart."));
 
 		DrawText(ScoreText, FLinearColor::White, 40.0f, 40.0f, ScoreFont, 1.0f, false);
 		DrawText(HitText, FLinearColor::White, 40.0f, 65.0f, ScoreFont, 1.0f, false);
@@ -65,19 +68,21 @@ void AFPSPracticeHUD::DrawHUD()
 		1.2f,
 		false);
 
-	const bool bShouldDrawVictory = PracticeGameState ? PracticeGameState->HasWonGame() : (GameMode && GameMode->HasWonGame());
-	if (bShouldDrawVictory)
+	const bool bShouldDrawMatchResult = PracticeGameState && PracticePlayerState && PracticeGameState->HasWonGame();
+	if (bShouldDrawMatchResult)
 	{
-		const FString VictoryText(TEXT("Victory!"));
-		float VictoryWidth = 0.0f;
-		float VictoryHeight = 0.0f;
-		GetTextSize(VictoryText, VictoryWidth, VictoryHeight, VictoryFont, 1.0f);
+		const bool bIsWinningPlayer = PracticeGameState->GetWinningPlayerState() == PracticePlayerState;
+		const FString ResultText = bIsWinningPlayer ? TEXT("Victory!") : TEXT("Defeat!");
+		const FLinearColor ResultColor = bIsWinningPlayer ? FLinearColor::Yellow : FLinearColor(1.0f, 0.2f, 0.2f, 1.0f);
+		float ResultWidth = 0.0f;
+		float ResultHeight = 0.0f;
+		GetTextSize(ResultText, ResultWidth, ResultHeight, VictoryFont, 1.0f);
 
 		DrawText(
-			VictoryText,
-			FLinearColor::Yellow,
-			(Canvas->ClipX - VictoryWidth) * 0.5f,
-			(Canvas->ClipY - VictoryHeight) * 0.5f - 60.0f,
+			ResultText,
+			ResultColor,
+			(Canvas->ClipX - ResultWidth) * 0.5f,
+			(Canvas->ClipY - ResultHeight) * 0.5f - 60.0f,
 			VictoryFont,
 			1.0f,
 			false);

@@ -5,7 +5,9 @@
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraShakeBase.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/MeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "DeathScreenWidget.h"
 #include "DrawDebugHelpers.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -23,6 +25,8 @@
 #include "FPSDamageableInterface.h"
 #include "FPS_Practice_Demo.h"
 #include "FPS_Practice_DemoGameMode.h"
+#include "FPS_Practice_DemoGameState.h"
+#include "FPSPracticePlayerState.h"
 #include "FPSBasicEnemy.h"
 #include "ShootingTarget.h"
 
@@ -30,6 +34,7 @@ AFPS_Practice_DemoCharacter::AFPS_Practice_DemoCharacter()
 {
 	bReplicates = true;
 	SetReplicateMovement(true);
+	DeathScreenWidgetClass = UDeathScreenWidget::StaticClass();
 
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
@@ -68,6 +73,12 @@ AFPS_Practice_DemoCharacter::AFPS_Practice_DemoCharacter()
 	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 
 	CurrentHealth = MaxHealth;
+}
+
+void AFPS_Practice_DemoCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+	BindMatchStateDelegate();
 }
 
 void AFPS_Practice_DemoCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -341,6 +352,7 @@ void AFPS_Practice_DemoCharacter::ReceiveFPSDamage_Implementation(float DamageAm
 	{
 		bIsDead = true;
 		ApplyDeathState();
+		ShowDeathScreen();
 
 		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Player killed"));
 		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Player killed by DamageCauser: %s"), *GetNameSafe(DamageCauser));
@@ -349,7 +361,7 @@ void AFPS_Practice_DemoCharacter::ReceiveFPSDamage_Implementation(float DamageAm
 		{
 			if (AFPS_Practice_DemoGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AFPS_Practice_DemoGameMode>() : nullptr)
 			{
-				GameMode->AddPlayerKillScore(DamageCauser, this);
+				GameMode->AddPlayerKillScore(Cast<AFPS_Practice_DemoCharacter>(DamageCauser)->GetController(), GetController());
 			}
 		}
 	}
@@ -374,6 +386,19 @@ void AFPS_Practice_DemoCharacter::ServerFire_Implementation(FVector_NetQuantize 
 void AFPS_Practice_DemoCharacter::ServerRequestRestartLevel_Implementation()
 {
 	RestartLevel();
+}
+
+void AFPS_Practice_DemoCharacter::ServerRequestRespawn_Implementation()
+{
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("ServerRequestRespawn called"));
+
+	AFPS_Practice_DemoGameState* PracticeGameState = GetWorld() ? GetWorld()->GetGameState<AFPS_Practice_DemoGameState>() : nullptr;
+	if (!bIsDead || (PracticeGameState && PracticeGameState->HasWonGame()))
+	{
+		return;
+	}
+
+	RespawnAtPlayerStart();
 }
 
 void AFPS_Practice_DemoCharacter::PlayLocalFireEffects(const FVector& FireLocation)
@@ -457,13 +482,209 @@ void AFPS_Practice_DemoCharacter::ExecuteFireTrace(const FVector& TraceStart, co
 
 void AFPS_Practice_DemoCharacter::ApplyDeathState()
 {
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Player died, hiding character and disabling collision"));
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Applying dead visual state"));
+
 	StopJumping();
+	SetCharacterVisualState(true);
 
 	if (UCharacterMovementComponent* CharacterMovementComponent = GetCharacterMovement())
 	{
 		CharacterMovementComponent->StopMovementImmediately();
+		CharacterMovementComponent->Velocity = FVector::ZeroVector;
 		CharacterMovementComponent->DisableMovement();
 	}
+}
+
+void AFPS_Practice_DemoCharacter::RestoreAliveState()
+{
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Applying alive visual state"));
+	SetCharacterVisualState(false);
+
+	if (UCharacterMovementComponent* CharacterMovementComponent = GetCharacterMovement())
+	{
+		CharacterMovementComponent->StopMovementImmediately();
+		CharacterMovementComponent->Velocity = FVector::ZeroVector;
+		CharacterMovementComponent->SetMovementMode(MOVE_Walking);
+	}
+}
+
+void AFPS_Practice_DemoCharacter::SetCharacterVisualState(bool bDead)
+{
+	TArray<UMeshComponent*> MeshComponents;
+	GetComponents<UMeshComponent>(MeshComponents);
+
+	for (UMeshComponent* MeshComponent : MeshComponents)
+	{
+		if (!MeshComponent)
+		{
+			continue;
+		}
+
+		MeshComponent->SetHiddenInGame(bDead, true);
+
+		if (bDead)
+		{
+			MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+		else if (MeshComponent == GetMesh())
+		{
+			MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+		}
+		else if (MeshComponent == FirstPersonMesh)
+		{
+			MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+	}
+
+	if (UCapsuleComponent* CapsuleCollisionComponent = GetCapsuleComponent())
+	{
+		if (bDead)
+		{
+			CapsuleCollisionComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			SetActorEnableCollision(false);
+		}
+		else
+		{
+			SetActorEnableCollision(true);
+			CapsuleCollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			CapsuleCollisionComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+		}
+	}
+}
+
+void AFPS_Practice_DemoCharacter::ShowDeathScreen()
+{
+	if (!ShouldShowDeathScreen())
+	{
+		return;
+	}
+
+	if (!DeathScreenWidgetInstance)
+	{
+		APlayerController* PlayerController = Cast<APlayerController>(GetController());
+		if (!PlayerController || !DeathScreenWidgetClass)
+		{
+			return;
+		}
+
+		DeathScreenWidgetInstance = CreateWidget<UDeathScreenWidget>(PlayerController, DeathScreenWidgetClass);
+		if (!DeathScreenWidgetInstance)
+		{
+			return;
+		}
+
+		DeathScreenWidgetInstance->InitializeForCharacter(this);
+	}
+
+	if (!DeathScreenWidgetInstance->IsInViewport())
+	{
+		DeathScreenWidgetInstance->AddToViewport(100);
+	}
+
+	DeathScreenWidgetInstance->StartFadeIn();
+	SetDeathScreenInputMode(true);
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Player died, showing death screen"));
+}
+
+void AFPS_Practice_DemoCharacter::HideDeathScreen()
+{
+	if (DeathScreenWidgetInstance && DeathScreenWidgetInstance->IsInViewport())
+	{
+		DeathScreenWidgetInstance->RemoveFromParent();
+	}
+
+	SetDeathScreenInputMode(false);
+}
+
+void AFPS_Practice_DemoCharacter::SetDeathScreenInputMode(bool bEnableUIInput)
+{
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (!PlayerController || !PlayerController->IsLocalController())
+	{
+		return;
+	}
+
+	PlayerController->bShowMouseCursor = bEnableUIInput;
+
+	if (bEnableUIInput)
+	{
+		FInputModeUIOnly InputMode;
+		if (DeathScreenWidgetInstance)
+		{
+			InputMode.SetWidgetToFocus(DeathScreenWidgetInstance->TakeWidget());
+		}
+		PlayerController->SetInputMode(InputMode);
+	}
+	else
+	{
+		FInputModeGameOnly InputMode;
+		PlayerController->SetInputMode(InputMode);
+	}
+}
+
+bool AFPS_Practice_DemoCharacter::ShouldShowDeathScreen() const
+{
+	if (!IsLocallyControlled() || !bIsDead)
+	{
+		return false;
+	}
+
+	const AFPS_Practice_DemoGameState* PracticeGameState = GetWorld() ? GetWorld()->GetGameState<AFPS_Practice_DemoGameState>() : nullptr;
+	return !(PracticeGameState && PracticeGameState->HasWonGame());
+}
+
+void AFPS_Practice_DemoCharacter::HandleMatchStateUpdated()
+{
+	const AFPS_Practice_DemoGameState* PracticeGameState = GetWorld() ? GetWorld()->GetGameState<AFPS_Practice_DemoGameState>() : nullptr;
+	if (PracticeGameState && PracticeGameState->HasWonGame())
+	{
+		HideDeathScreen();
+	}
+}
+
+void AFPS_Practice_DemoCharacter::BindMatchStateDelegate()
+{
+	if (!IsLocallyControlled())
+	{
+		return;
+	}
+
+	if (AFPS_Practice_DemoGameState* PracticeGameState = GetWorld() ? GetWorld()->GetGameState<AFPS_Practice_DemoGameState>() : nullptr)
+	{
+		PracticeGameState->OnMatchStateUpdated.RemoveAll(this);
+		PracticeGameState->OnMatchStateUpdated.AddUObject(this, &AFPS_Practice_DemoCharacter::HandleMatchStateUpdated);
+	}
+}
+
+void AFPS_Practice_DemoCharacter::RespawnAtPlayerStart()
+{
+	AFPS_Practice_DemoGameState* PracticeGameState = GetWorld() ? GetWorld()->GetGameState<AFPS_Practice_DemoGameState>() : nullptr;
+	if (PracticeGameState && PracticeGameState->HasWonGame())
+	{
+		return;
+	}
+
+	AController* CharacterController = GetController();
+	AFPS_Practice_DemoGameMode* GameMode = GetWorld() ? GetWorld()->GetAuthGameMode<AFPS_Practice_DemoGameMode>() : nullptr;
+	AActor* PlayerStart = (GameMode && CharacterController) ? GameMode->FindPlayerStart(CharacterController) : nullptr;
+	if (PlayerStart)
+	{
+		UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Respawning player at PlayerStart: %s"), *GetNameSafe(PlayerStart));
+		SetActorLocationAndRotation(PlayerStart->GetActorLocation(), PlayerStart->GetActorRotation(), false, nullptr, ETeleportType::TeleportPhysics);
+
+		if (CharacterController)
+		{
+			CharacterController->SetControlRotation(PlayerStart->GetActorRotation());
+		}
+	}
+
+	CurrentHealth = MaxHealth;
+	bIsDead = false;
+	RestoreAliveState();
+	HideDeathScreen();
+	UE_LOG(LogFPS_Practice_Demo, Log, TEXT("Player respawn complete"));
 }
 
 void AFPS_Practice_DemoCharacter::OnRep_PlayerDeadState()
@@ -471,5 +692,32 @@ void AFPS_Practice_DemoCharacter::OnRep_PlayerDeadState()
 	if (bIsDead)
 	{
 		ApplyDeathState();
+		ShowDeathScreen();
+	}
+	else
+	{
+		RestoreAliveState();
+		HideDeathScreen();
+	}
+}
+
+void AFPS_Practice_DemoCharacter::HandleReplayButtonClicked()
+{
+	if (AFPS_Practice_DemoGameState* PracticeGameState = GetWorld() ? GetWorld()->GetGameState<AFPS_Practice_DemoGameState>() : nullptr)
+	{
+		if (PracticeGameState->HasWonGame())
+		{
+			HideDeathScreen();
+			return;
+		}
+	}
+
+	if (HasAuthority())
+	{
+		ServerRequestRespawn_Implementation();
+	}
+	else
+	{
+		ServerRequestRespawn();
 	}
 }

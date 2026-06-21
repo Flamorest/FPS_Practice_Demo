@@ -6,8 +6,10 @@
 #include "GameFramework/GameStateBase.h"
 #include "FPS_Practice_DemoGameState.generated.h"
 
+class APlayerState;
+
 /**
- *  Replicated score state for HUD display in network play
+ *  Replicated global match state for HUD display in network play
  */
 UCLASS()
 class FPS_PRACTICE_DEMO_API AFPS_Practice_DemoGameState : public AGameStateBase
@@ -16,35 +18,31 @@ class FPS_PRACTICE_DEMO_API AFPS_Practice_DemoGameState : public AGameStateBase
 
 protected:
 
-	UPROPERTY(ReplicatedUsing=OnRep_ScoreState, VisibleAnywhere, BlueprintReadOnly, Category="Score")
-	int32 CurrentScore = 0;
-
-	UPROPERTY(ReplicatedUsing=OnRep_ScoreState, VisibleAnywhere, BlueprintReadOnly, Category="Score")
+	UPROPERTY(ReplicatedUsing=OnRep_MatchState, VisibleAnywhere, BlueprintReadOnly, Category="Score")
 	int32 TargetScoreToWin = 100;
 
-	UPROPERTY(ReplicatedUsing=OnRep_ScoreState, VisibleAnywhere, BlueprintReadOnly, Category="Score")
-	int32 HitTargetCount = 0;
-
-	UPROPERTY(ReplicatedUsing=OnRep_ScoreState, VisibleAnywhere, BlueprintReadOnly, Category="Score")
-	int32 EnemyKillCount = 0;
-
-	UPROPERTY(ReplicatedUsing=OnRep_ScoreState, VisibleAnywhere, BlueprintReadOnly, Category="Score")
+	UPROPERTY(ReplicatedUsing=OnRep_MatchState, VisibleAnywhere, BlueprintReadOnly, Category="Score")
 	bool bHasWonGame = false;
 
 	UFUNCTION()
-	void OnRep_ScoreState();
+	void OnRep_MatchState();
+
+	UPROPERTY(ReplicatedUsing=OnRep_MatchState, VisibleAnywhere, BlueprintReadOnly, Category="Score")
+	TObjectPtr<APlayerState> WinningPlayerState = nullptr;
 
 public:
+
+	DECLARE_MULTICAST_DELEGATE(FOnMatchStateUpdated);
 
 	AFPS_Practice_DemoGameState();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	void UpdateScoreState(int32 NewCurrentScore, int32 NewTargetScoreToWin, int32 NewHitTargetCount, int32 NewEnemyKillCount, bool bNewHasWonGame);
+	void UpdateMatchState(int32 NewTargetScoreToWin, bool bNewHasWonGame, APlayerState* NewWinningPlayerState);
 
-	int32 GetCurrentScore() const { return CurrentScore; }
 	int32 GetTargetScoreToWin() const { return TargetScoreToWin; }
-	int32 GetHitTargetCount() const { return HitTargetCount; }
-	int32 GetEnemyKillCount() const { return EnemyKillCount; }
 	bool HasWonGame() const { return bHasWonGame; }
+	APlayerState* GetWinningPlayerState() const { return WinningPlayerState; }
+
+	FOnMatchStateUpdated OnMatchStateUpdated;
 };

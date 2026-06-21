@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DeathScreenWidget.h"
 #include "FPSDamageableInterface.h"
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
@@ -15,6 +16,7 @@ class UInputAction;
 class UInputMappingContext;
 class USoundBase;
 class UCameraShakeBase;
+class AFPS_Practice_DemoGameState;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
@@ -104,6 +106,14 @@ protected:
 	/** True once the player reaches zero health */
 	UPROPERTY(ReplicatedUsing=OnRep_PlayerDeadState, VisibleAnywhere, BlueprintReadOnly, Category="Health", meta = (AllowPrivateAccess = "true"))
 	bool bIsDead = false;
+
+	/** Widget class shown when the local player dies and can replay */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="UI", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<UDeathScreenWidget> DeathScreenWidgetClass;
+
+	/** Active local death screen widget instance */
+	UPROPERTY(Transient)
+	TObjectPtr<UDeathScreenWidget> DeathScreenWidgetInstance;
 	
 public:
 	AFPS_Practice_DemoCharacter();
@@ -160,6 +170,9 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void ServerRequestRestartLevel();
 
+	UFUNCTION(Server, Reliable)
+	void ServerRequestRespawn();
+
 	/** Handles generic FPS damage */
 	virtual void ReceiveFPSDamage_Implementation(float DamageAmount, AActor* DamageCauser) override;
 
@@ -171,9 +184,20 @@ protected:
 	void ExecuteFireTrace(const FVector& TraceStart, const FVector& ShotDirection, bool bApplyDamage);
 
 	void ApplyDeathState();
+	void RestoreAliveState();
+	void SetCharacterVisualState(bool bDead);
+	void ShowDeathScreen();
+	void HideDeathScreen();
+	void SetDeathScreenInputMode(bool bEnableUIInput);
+	bool ShouldShowDeathScreen() const;
+	void HandleMatchStateUpdated();
+	void BindMatchStateDelegate();
+	void RespawnAtPlayerStart();
 
 	UFUNCTION()
 	void OnRep_PlayerDeadState();
+
+	virtual void BeginPlay() override;
 
 protected:
 
@@ -197,6 +221,9 @@ public:
 
 	/** Returns true if the player is dead **/
 	bool IsPlayerDead() const { return bIsDead; }
+
+	/** Handles replay button presses from the local death screen **/
+	void HandleReplayButtonClicked();
 
 };
 
